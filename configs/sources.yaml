@@ -1,0 +1,47 @@
+project: RADAR 27
+retrieved_from_official_portal: "https://ine.mx/transparencia/datos-abiertos/visualizacion-datos/conteos-censales-participacion/"
+scope:
+  included: "Elecciones federales 2009, 2012, 2015, 2018, 2021 y 2024"
+  excluded_from_main_panel:
+    - "Voto en prisión preventiva 2024"
+    - "Voto anticipado 2024"
+    - "Proceso Electoral Extraordinario del Poder Judicial de la Federación 2024-2025"
+  note: "Las exclusiones se registran; no se asume equivalencia ni ausencia de solapamiento."
+
+manual:
+  id: ccpc_manual_2009_2024
+  kind: pdf
+  url: "https://ine.mx/wp-content/uploads/2025/06/Manual-Conteos-Censales-2009-2024.pdf"
+  filename: "Manual-Conteos-Censales-2009-2024.pdf"
+
+elections:
+  2009:
+    kind: zip
+    url: "https://ine.mx/wp-content/uploads/2022/04/DatosAbiertos_DECEyEC_ConteosCensales2009.zip"
+    filename: "DatosAbiertos_DECEyEC_ConteosCensales2009.zip"
+  2012:
+    kind: zip
+    url: "https://ine.mx/wp-content/uploads/2022/04/DatosAbiertos_DECEyEC_ConteosCensales2012.zip"
+    filename: "DatosAbiertos_DECEyEC_ConteosCensales2012.zip"
+  2015:
+    kind: zip
+    url: "https://ine.mx/wp-content/uploads/2022/04/DatosAbiertos_DECEyEC_ConteosCensales2015.zip"
+    filename: "DatosAbiertos_DECEyEC_ConteosCensales2015.zip"
+  2018:
+    kind: zip
+    url: "https://ine.mx/wp-content/uploads/2022/04/DatosAbiertos_DECEyEC_ConteosCensales2018.zip"
+    filename: "DatosAbiertos_DECEyEC_ConteosCensales2018.zip"
+  2021:
+    kind: zip
+    url: "https://ine.mx/wp-content/uploads/2022/04/DatosAbiertos_DECEyEC_ConteosCensales2021.zip"
+    filename: "DatosAbiertos_DECEyEC_ConteosCensales2021.zip"
+  2024:
+    kind: zip
+    url: "https://ine.mx/wp-content/uploads/2025/08/DatosAbiertos_DECEyEC_ConteosCensales2024.zip"
+    filename: "DatosAbiertos_DECEyEC_ConteosCensales2024.zip"
+
+cartography:
+  platform_reference_date: "2023-05"
+  portal_url: "https://www.ine.mx/productos-geografia-electoral-descargables/"
+  status: "identified_not_downloaded"
+  warning: "El corte de la plataforma no prueba que cada ZIP esté armonizado al mismo marco."

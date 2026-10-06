@@ -1,0 +1,26 @@
+version: 1
+checked_on: "2026-10-05"
+status: request_required
+crosswalk_downloaded: false
+geometry_downloaded: false
+sources:
+  - id: ine_specialized_cartography
+    url: https://www.ine.mx/voto-y-elecciones/especializados/
+    authority: Instituto Nacional Electoral
+    evidence: >-
+      Los productos cartograficos digitales especializados, incluido el Marco Geografico
+      Seccional y el Catalogo de Secciones, se obtienen mediante solicitud de acceso a la
+      informacion debido a su peso; la pagina no ofrece un crosswalk historico descargable.
+  - id: derfe_activity_report_2023_q2
+    url: https://repositoriodocumental.ine.mx/xmlui/bitstream/handle/123456789/152317/crfe-5se-2023-07-12-p3-1-informe.pdf
+    authority: Direccion Ejecutiva del Registro Federal de Electores
+    evidence: >-
+      El informe reporta 2,469 municipios y 69,548 secciones en abril, mayo y junio de 2023,
+      ademas de trabajos de resenamiento e integracion seccional en curso.
+  - id: ccpc_platform
+    url: https://ine.mx/transparencia/datos-abiertos/visualizacion-datos/conteos-censales-participacion/
+    authority: Instituto Nacional Electoral
+    evidence: La plataforma declara cartografia con corte a mayo de 2023.
+decision: >-
+  No aplicar equivalencias geometricas ni construir una llave longitudinal definitiva hasta
+  recibir y validar productos oficiales compatibles con cada eleccion.

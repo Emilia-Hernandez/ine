@@ -1,0 +1,53 @@
+version: 1
+retrieved_on: "2026-10-05"
+sources:
+  amge_history:
+    title: Relacion de secciones con actualizaciones al Marco Geografico Electoral 2005-2022
+    authority: Instituto Nacional Electoral - DERFE
+    official_resolution_url: https://repositoriodocumental.ine.mx/xmlui/bitstream/handle/123456789/152095/ine-ct-r-0175-2023.pdf
+    public_folder_url: https://1drv.ms/f/s!AtO0oFXXb9dE-b1Y9VF2635ojiBCLg?e=bzcsdF
+    local_archive: data/raw/public_ine/amge_2005_2022_onedrive.zip
+    local_workbook: data/interim/public_ine/amge_2005_2022.xlsx
+    archive_sha256: bf63c09dcc5cea00c25e2da0c353e308069c694284300f8df810e553f8cbcddf
+    workbook_sha256: a844e36c288a359a3e3fd05afc2a861f12a8d6df954238e1b28722e9705fed79
+    coverage_end_year: 2022
+    access: public_existing_transparency_response
+    acquisition: browser_folder_download_without_authentication
+  mgs_2022:
+    title: Marco Geografico Seccional UTM
+    authority: Instituto Nacional Electoral - DERFE
+    official_resolution_url: https://repositoriodocumental.ine.mx/xmlui/bitstream/handle/123456789/152095/ine-ct-r-0175-2023.pdf
+    public_folder_url: https://1drv.ms/f/s!AtO0oFXXb9dEgYr3ZiKR_Jr5MzdJyO0
+    cutoff: "2022-12-14"
+    access: public_existing_transparency_response
+    use_in_this_phase: source_verified_not_downloaded
+  ccpc_tableau:
+    title: Plataforma Conteos Censales de Participacion Ciudadana 2009-2024
+    authority: Instituto Nacional Electoral
+    landing_url: https://portal.ine.mx/transparencia/datos-abiertos/visualizacion-datos/conteos-censales-participacion/
+    workbook_url: https://tableau.ine.mx/t/DECEYEC/views/Prototipo9/Bienvenidoalaplataforma
+    declared_cartography_cutoff: "2023-05"
+    access: public_embedded_tableau
+    use_in_this_phase: visual_reference_not_lineage_source
+  eceg_2020:
+    title: Estadisticas Censales a Escalas Geoelectorales 2020
+    authority: Instituto Nacional de Estadistica y Geografia
+    catalog_url: https://www.inegi.org.mx/app/descarga/ficha.html?ag=0&f=csv&tit=540314
+    reference_year: 2020
+    access: public_open_data
+    use_in_this_phase: deferred_covariates_not_historical_crosswalk
+
+lineage_policy:
+  eligible_case_labels:
+    - DIVISIÓN DE SECCIONES
+    - FUSIÓN DE SECCIONES
+  ambiguous_cases:
+    - reassignment
+    - boundary_change
+    - georeferencing_change
+  event_availability_rule: >-
+    For a target election in year t, only AMGE events with effective_year strictly less than t
+    are used. This conservative rule prevents same-year post-election information leakage when
+    the workbook supplies only a year rather than an exact effective date.
+  no_fractional_allocation: true
+  component_rule: undirected_connected_components_of_eligible_origin_destination_edges

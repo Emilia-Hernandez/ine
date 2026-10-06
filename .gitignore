@@ -1,0 +1,23 @@
+.DS_Store
+**/.DS_Store
+.obsidian/
+.venv/
+.bootstrap-uv/
+.env
+.env.*
+!.env.example
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.py[cod]
+.ipynb_checkpoints/
+tmp/
+.tmp/
+
+# Los datos oficiales y las ejecuciones auditadas se regeneran mediante los notebooks.
+data/raw/
+data/interim/
+artifacts/
+
+# Copia local redundante; el notebook 00 descarga y conserva la versión bajo data/raw/reference/.
+Manual-Conteos-Censales-2009-2024.pdf

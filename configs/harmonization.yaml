@@ -1,0 +1,57 @@
+version: 1
+years:
+  2009:
+    election_family: midterm
+    source_election_date: "5/7/2009"
+    election_date: "2009-07-05"
+  2012:
+    election_family: presidential
+    source_election_date: "1/7/2012"
+    election_date: "2012-07-01"
+  2015:
+    election_family: midterm
+    source_election_date: "7/6/2015"
+    election_date: "2015-06-07"
+  2018:
+    election_family: presidential
+    source_election_date: "1/7/2018"
+    election_date: "2018-07-01"
+  2021:
+    election_family: midterm
+    source_election_date: "6/6/2021"
+    election_date: "2021-06-06"
+  2024:
+    election_family: presidential
+    source_election_date: "06/02/2024"
+    election_date: "2024-06-02"
+
+id_serialization:
+  entity_id_width: 2
+  municipality_id_width: 3
+  section_number_width: 4
+  district_id_width: 2
+  section_key_observed: "{entity_id}:{section_number}"
+  municipality_key_observed: "{entity_id}:{municipality_id}"
+
+category_labels:
+  section_type:
+    U: urbana
+    M: mixta
+    R: rural
+  sex:
+    "0": hombre
+    "1": mujer
+    "2": no_binario
+
+retention_policy:
+  exclude_rows: false
+  age_review_threshold: 100
+  missing_districts: retain_as_null
+  zero_denominator: retain_ratio_as_null
+  non_binary_2024: retain_source_category
+
+geography_policy:
+  applied_crosswalk: null
+  status: unresolved_official_crosswalk
+  permitted_longitudinal_key: null
+  provisional_key: section_key_observed

@@ -1,0 +1,67 @@
+version: 1
+objective: transparent_geography_strategy_backtest
+target: official_participation
+target_formula: voted / (voted + did_not_vote)
+prediction_rule: last_same_type_participation
+folds:
+  - target_year: 2015
+    feature_year: 2009
+    election_family: midterm
+    evidence_status: complete_within_amge_publication
+  - target_year: 2018
+    feature_year: 2012
+    election_family: presidential
+    evidence_status: complete_within_amge_publication
+  - target_year: 2021
+    feature_year: 2015
+    election_family: midterm
+    evidence_status: primary_2027_analogue
+  - target_year: 2024
+    feature_year: 2018
+    election_family: presidential
+    evidence_status: partial_amge_ends_2022
+
+confidence_classes:
+  A:
+    label: stable_observed_section
+    rule: >-
+      At least three elections observed as of target, present in the previous same-type election,
+      stable municipality and section type, and no eligible or ambiguous prior AMGE event.
+  B:
+    label: official_lineage_component
+    rule: >-
+      Member of a complete one-to-many or many-to-one AMGE relation labelled division or fusion.
+  C:
+    label: new_or_short_history
+    rule: Fewer than three elections as of target or absent in the previous same-type election.
+  D:
+    label: ambiguous_geography
+    rule: >-
+      Prior non-lineage AMGE event, incomplete relation, or changing municipality/section type.
+
+scenarios:
+  stable_only:
+    units: class_A_sections
+    prediction: same_section_previous_same_type
+  stable_plus_lineage:
+    units: class_A_sections_plus_class_B_components
+    prediction: same_section_or_previous_component_ratio_of_sums
+  hierarchical_fallback:
+    units: all_target_sections
+    prediction_priority:
+      - same_section_previous_same_type
+      - official_lineage_component_previous_same_type
+      - target_municipality_previous_same_type
+      - target_entity_previous_same_type
+      - national_previous_same_type
+
+metrics:
+  - mae
+  - rmse
+  - bias
+  - identified_weighted_mae
+  - identified_weighted_rmse
+  - ln_weighted_mae
+  - share_within_5pp
+  - section_coverage
+  - nominal_list_coverage

@@ -1,0 +1,275 @@
+version: 1
+profile: feature_model_evaluation
+notebooks:
+  - id: setup_sources_download
+    order: 0
+    path: notebooks/00_setup_sources_download.ipynb
+    depends_on: []
+    inputs:
+      - configs/sources.yaml
+      - Manual-Conteos-Censales-2009-2024.pdf
+    outputs:
+      - data/manifests/source_manifest.csv
+      - data/manifests/zip_member_inventory.csv
+      - data/interim/extracted
+    artifacts:
+      - path: data/manifests/source_manifest.csv
+        type: manifest
+        cell_id: download-official-sources
+        cell_tag: artifact-source-manifest
+      - path: data/manifests/zip_member_inventory.csv
+        type: inventory
+        cell_id: summarize-zip-members
+        cell_tag: artifact-zip-inventory
+  - id: raw_schema_audit
+    order: 1
+    path: notebooks/01_raw_schema_audit.ipynb
+    depends_on:
+      - setup_sources_download
+    inputs:
+      - data/manifests/source_manifest.csv
+      - data/manifests/zip_member_inventory.csv
+      - data/interim/extracted
+    outputs:
+      - artifacts/tables/raw_file_inventory.parquet
+      - artifacts/tables/field_equivalence_matrix.csv
+      - artifacts/tables/category_inventory.csv
+      - artifacts/reports/raw_audit.html
+    artifacts:
+      - path: artifacts/tables/raw_file_inventory.parquet
+        type: table
+        cell_id: run-physical-audit
+        cell_tag: artifact-raw-file-inventory
+      - path: artifacts/tables/raw_year_summary.json
+        type: table
+        cell_id: run-physical-audit
+        cell_tag: artifact-raw-file-inventory
+      - path: artifacts/tables/raw_section_frame_inventory.parquet
+        type: table
+        cell_id: audit-territorial-comparability
+        cell_tag: territory
+      - path: artifacts/tables/field_equivalence_matrix.csv
+        type: table
+        cell_id: build-field-equivalence
+        cell_tag: artifact-field-equivalence
+      - path: artifacts/tables/category_inventory.csv
+        type: table
+        cell_id: audit-categories
+        cell_tag: categories
+      - path: artifacts/reports/raw_audit.html
+        type: report
+        cell_id: audit-final-checks
+        cell_tag: summary
+  - id: clean_ids_harmonization
+    order: 2
+    path: notebooks/02_clean_ids_harmonization.ipynb
+    depends_on:
+      - raw_schema_audit
+    inputs:
+      - configs/harmonization.yaml
+      - configs/geography_sources.yaml
+      - artifacts/tables/raw_year_summary.json
+      - artifacts/tables/raw_section_frame_inventory.parquet
+      - data/interim/extracted
+    outputs:
+      - data/interim/harmonized_demographic
+      - artifacts/tables/harmonization_year_summary.csv
+      - artifacts/tables/cleaning_exclusion_log.csv
+      - artifacts/tables/provisional_section_year_totals.parquet
+      - artifacts/tables/aggregation_reconciliation.csv
+      - artifacts/tables/section_code_transition_summary.csv
+    artifacts:
+      - path: artifacts/tables/harmonization_year_summary.csv
+        type: table
+        cell_id: run-harmonization
+        cell_tag: artifact-harmonization-summary
+      - path: artifacts/tables/cleaning_exclusion_log.csv
+        type: log
+        cell_id: show-exclusion-log
+        cell_tag: artifact-exclusion-log
+      - path: artifacts/tables/provisional_section_year_totals.parquet
+        type: table
+        cell_id: validate-provisional-aggregation
+        cell_tag: artifact-aggregation-reconciliation
+      - path: artifacts/tables/aggregation_reconciliation.csv
+        type: validation
+        cell_id: validate-provisional-aggregation
+        cell_tag: artifact-aggregation-reconciliation
+      - path: artifacts/tables/section_code_transition_summary.csv
+        type: validation
+        cell_id: show-section-transitions
+        cell_tag: artifact-section-transitions
+  - id: public_geography_lineage
+    order: 3
+    path: notebooks/03_geography_graph.ipynb
+    depends_on:
+      - clean_ids_harmonization
+    inputs:
+      - configs/public_geography.yaml
+      - configs/evaluation.yaml
+      - data/interim/public_ine/amge_2005_2022.xlsx
+      - artifacts/tables/provisional_section_year_totals.parquet
+    outputs:
+      - data/manifests/public_geography_manifest.csv
+      - artifacts/tables/amge_event_rows.parquet
+      - artifacts/tables/amge_lineage_edges.parquet
+      - artifacts/tables/amge_affected_sections.parquet
+      - artifacts/tables/section_confidence_by_election.parquet
+      - artifacts/tables/section_confidence_2024.csv
+      - artifacts/tables/lineage_components_by_election.parquet
+    artifacts:
+      - path: data/manifests/public_geography_manifest.csv
+        type: manifest
+        cell_id: write-public-manifest
+        cell_tag: artifact-public-source-manifest
+      - path: artifacts/tables/amge_event_rows.parquet
+        type: table
+        cell_id: parse-amge-events
+        cell_tag: artifact-amge-events
+      - path: artifacts/tables/amge_lineage_edges.parquet
+        type: table
+        cell_id: parse-amge-events
+        cell_tag: artifact-amge-events
+      - path: artifacts/tables/amge_affected_sections.parquet
+        type: table
+        cell_id: parse-amge-events
+        cell_tag: artifact-amge-events
+      - path: artifacts/tables/section_confidence_by_election.parquet
+        type: table
+        cell_id: build-confidence-classes
+        cell_tag: artifact-confidence-classes
+      - path: artifacts/tables/section_confidence_2024.csv
+        type: table
+        cell_id: build-confidence-classes
+        cell_tag: artifact-confidence-classes
+      - path: artifacts/tables/lineage_components_by_election.parquet
+        type: table
+        cell_id: build-confidence-classes
+        cell_tag: artifact-confidence-classes
+  - id: panel_backtest_evaluation
+    order: 4
+    path: notebooks/04_panel_build_audit.ipynb
+    depends_on:
+      - public_geography_lineage
+    inputs:
+      - configs/evaluation.yaml
+      - configs/features.yaml
+      - artifacts/tables/section_confidence_by_election.parquet
+      - artifacts/tables/lineage_components_by_election.parquet
+    outputs:
+      - artifacts/tables/backtest_predictions.parquet
+      - artifacts/tables/backtest_metrics.csv
+      - artifacts/tables/backtest_errors_by_class.csv
+      - artifacts/tables/fallback_source_counts.csv
+      - artifacts/tables/variable_lineage.csv
+      - artifacts/reports/public_lineage_evaluation.html
+    artifacts:
+      - path: artifacts/tables/backtest_predictions.parquet
+        type: predictions
+        cell_id: run-geography-backtests
+        cell_tag: artifact-backtest-metrics
+      - path: artifacts/tables/backtest_metrics.csv
+        type: metrics
+        cell_id: run-geography-backtests
+        cell_tag: artifact-backtest-metrics
+      - path: artifacts/tables/fallback_source_counts.csv
+        type: audit
+        cell_id: show-fallback-provenance
+        cell_tag: artifact-fallback-sources
+      - path: artifacts/tables/backtest_errors_by_class.csv
+        type: metrics
+        cell_id: show-errors-by-class
+        cell_tag: artifact-errors-by-class
+      - path: artifacts/tables/variable_lineage.csv
+        type: data_dictionary
+        cell_id: audit-variable-lineage
+        cell_tag: artifact-variable-lineage
+      - path: artifacts/reports/public_lineage_evaluation.html
+        type: report
+        cell_id: write-evaluation-report
+        cell_tag: artifact-evaluation-report
+  - id: feature_model_evaluation
+    order: 5
+    path: notebooks/05_feature_model_evaluation.ipynb
+    depends_on:
+      - panel_backtest_evaluation
+    inputs:
+      - configs/inegi_eceg.yaml
+      - configs/modeling.yaml
+      - data/raw/inegi/eceg_2020_csv.zip
+      - data/interim/harmonized_demographic
+      - artifacts/tables/section_confidence_by_election.parquet
+      - artifacts/tables/lineage_components_by_election.parquet
+      - artifacts/tables/backtest_metrics.csv
+    outputs:
+      - data/manifests/eceg_source_manifest.csv
+      - artifacts/tables/eceg_2020_section_features.parquet
+      - artifacts/tables/eceg_selected_variable_dictionary.csv
+      - artifacts/tables/section_year_behavioral_features.parquet
+      - artifacts/tables/feature_mart_ab.parquet
+      - artifacts/tables/feature_mart_coverage.csv
+      - artifacts/tables/model_feature_lineage.csv
+      - artifacts/tables/model_backtest_predictions.parquet
+      - artifacts/tables/model_backtest_metrics.csv
+      - artifacts/tables/model_errors_by_entity_class.csv
+      - artifacts/tables/model_feature_importance.csv
+      - artifacts/tables/model_run_registry.csv
+      - artifacts/model_decision.json
+      - artifacts/reports/feature_model_evaluation.html
+    artifacts:
+      - path: data/manifests/eceg_source_manifest.csv
+        type: manifest
+        cell_id: prepare-eceg-source
+        cell_tag: artifact-eceg-manifest
+      - path: artifacts/tables/eceg_2020_section_features.parquet
+        type: table
+        cell_id: prepare-eceg-source
+        cell_tag: artifact-eceg-dictionary
+      - path: artifacts/tables/eceg_selected_variable_dictionary.csv
+        type: data_dictionary
+        cell_id: prepare-eceg-source
+        cell_tag: artifact-eceg-dictionary
+      - path: artifacts/tables/section_year_behavioral_features.parquet
+        type: table
+        cell_id: build-section-year-features
+        cell_tag: artifact-section-year-features
+      - path: artifacts/tables/feature_mart_ab.parquet
+        type: feature_mart
+        cell_id: build-feature-mart
+        cell_tag: artifact-feature-mart
+      - path: artifacts/tables/feature_mart_coverage.csv
+        type: validation
+        cell_id: build-feature-mart
+        cell_tag: artifact-feature-mart
+      - path: artifacts/tables/model_feature_lineage.csv
+        type: data_dictionary
+        cell_id: build-feature-mart
+        cell_tag: artifact-feature-lineage
+      - path: artifacts/tables/model_backtest_predictions.parquet
+        type: predictions
+        cell_id: run-feature-model-backtests
+        cell_tag: artifact-model-predictions
+      - path: artifacts/tables/model_backtest_metrics.csv
+        type: metrics
+        cell_id: run-feature-model-backtests
+        cell_tag: artifact-model-metrics
+      - path: artifacts/tables/model_errors_by_entity_class.csv
+        type: metrics
+        cell_id: show-model-provenance
+        cell_tag: artifact-model-registry
+      - path: artifacts/tables/model_feature_importance.csv
+        type: interpretation
+        cell_id: show-model-provenance
+        cell_tag: artifact-model-importance
+      - path: artifacts/tables/model_run_registry.csv
+        type: registry
+        cell_id: show-model-provenance
+        cell_tag: artifact-model-registry
+      - path: artifacts/model_decision.json
+        type: decision
+        cell_id: run-feature-model-backtests
+        cell_tag: artifact-model-decision
+      - path: artifacts/reports/feature_model_evaluation.html
+        type: report
+        cell_id: write-feature-model-report
+        cell_tag: artifact-feature-model-report

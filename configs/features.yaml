@@ -1,0 +1,58 @@
+version: 1
+features:
+  target_participation:
+    role: target
+    description: Participacion oficial en la eleccion objetivo.
+    source_columns: [voted, did_not_vote]
+    available_from: target_election
+    transformation: voted / nullif(voted + did_not_vote, 0)
+    leakage_risk: target; prohibited as predictor
+    missing_policy: exclude only if identified denominator is zero
+  last_same_type_participation:
+    role: predictor
+    description: Participacion de la eleccion previa de la misma familia.
+    source_columns: [voted, did_not_vote, election_family]
+    available_from: previous_same_type_election
+    transformation: ratio_of_sums(voted, voted + did_not_vote)
+    leakage_risk: low when feature_year < target_year
+    missing_policy: route to lineage, municipality, entity, then national fallback
+  lineage_component_participation:
+    role: predictor
+    description: Participacion previa agregada en una familia territorial AMGE oficial.
+    source_columns: [section_key_observed, voted, did_not_vote, amge_component_id]
+    available_from: previous_same_type_election_and_public_amge
+    transformation: sum(voted) / nullif(sum(voted + did_not_vote), 0)
+    leakage_risk: medium; component edges are filtered to effective_year < target_year
+    missing_policy: municipality fallback
+  municipality_previous_participation:
+    role: predictor
+    description: Participacion previa de la municipalidad observada en la eleccion objetivo.
+    source_columns: [municipality_key_observed, voted, did_not_vote]
+    available_from: previous_same_type_election
+    transformation: ratio_of_sums within municipality
+    leakage_risk: medium; municipality is a fallback geography, not an exact section lineage
+    missing_policy: entity fallback
+  entity_previous_participation:
+    role: predictor
+    description: Participacion previa de la entidad federativa.
+    source_columns: [entity_id, voted, did_not_vote]
+    available_from: previous_same_type_election
+    transformation: ratio_of_sums within entity
+    leakage_risk: low
+    missing_policy: national fallback
+  national_previous_participation:
+    role: predictor
+    description: Participacion nacional de la eleccion previa de la misma familia.
+    source_columns: [voted, did_not_vote]
+    available_from: previous_same_type_election
+    transformation: ratio_of_sums nationally
+    leakage_risk: low
+    missing_policy: fail; the previous election is a required input
+  geography_confidence_class:
+    role: audit_stratum
+    description: Clase A/B/C/D de confianza territorial; no usa participacion objetivo.
+    source_columns: [section_key_observed, municipality_key_observed, section_type_code, amge_events]
+    available_from: target_geography_and_prior_public_amge
+    transformation: rules in configs/evaluation.yaml
+    leakage_risk: medium; AMGE events are restricted to effective_year < target_year
+    missing_policy: class D

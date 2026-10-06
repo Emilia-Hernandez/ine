@@ -1,0 +1,97 @@
+version: 1
+objective: predict_official_section_participation_without_target_leakage
+primary_gate_target_year: 2021
+primary_baseline_scenario: stable_plus_lineage
+primary_metric: identified_weighted_mae
+minimum_primary_section_coverage: 0.93767
+maximum_absolute_weighted_mae_deterioration_other_folds: 0.005
+random_seed: 27
+
+training_policy:
+  evaluation_targets: [2018, 2021, 2024]
+  training_rule: all labeled feature-mart rows with target_year strictly before evaluation target
+  geography_scope: classes_A_and_B
+  target: voted / (voted + did_not_vote)
+  sample_weight: identified_records
+  prediction_bounds: [0.0, 1.0]
+  eceg_strict_backtest_targets: [2024]
+  eceg_retrofit_note: >-
+    For the 2024 secondary experiment, the 2020 ECEG snapshot is attached to historical
+    labeled units as information available at the 2024 forecast origin. It is never used
+    to claim a strict 2015, 2018, or 2021 historical forecast.
+
+models:
+  ridge_electoral:
+    family: ridge
+    feature_set: electoral
+    alpha: 10.0
+  hist_gradient_boosting_electoral:
+    family: hist_gradient_boosting
+    feature_set: electoral
+    prediction_mode: residual_correction
+    residual_shrinkage: 0.25
+    residual_shrinkage_rationale: selected conservatively on the pre-primary 2018 calibration fold
+    learning_rate: 0.05
+    max_iter: 250
+    max_leaf_nodes: 15
+    min_samples_leaf: 40
+    l2_regularization: 1.0
+  ridge_electoral_eceg:
+    family: ridge
+    feature_set: electoral_eceg
+    alpha: 10.0
+    allowed_target_years: [2024]
+  hist_gradient_boosting_electoral_eceg:
+    family: hist_gradient_boosting
+    feature_set: electoral_eceg
+    prediction_mode: residual_correction
+    residual_shrinkage: 0.25
+    learning_rate: 0.05
+    max_iter: 250
+    max_leaf_nodes: 15
+    min_samples_leaf: 40
+    l2_regularization: 1.0
+    allowed_target_years: [2024]
+
+feature_sets:
+  electoral:
+    numeric:
+      - participation_lag1
+      - participation_lag2
+      - participation_same_type
+      - participation_historical_mean
+      - participation_historical_std
+      - participation_trend_per_year
+      - participation_change_lag1_lag2
+      - participation_same_type_minus_lag1
+      - log_nominal_list_lag1
+      - nominal_list_growth_lag1_lag2
+      - identified_coverage_lag1
+      - female_nominal_share_lag1
+      - age_18_29_nominal_share_lag1
+      - age_30_44_nominal_share_lag1
+      - age_45_64_nominal_share_lag1
+      - age_65_plus_nominal_share_lag1
+      - female_turnout_lag1
+      - male_turnout_lag1
+      - female_minus_male_turnout_lag1
+      - age_18_29_turnout_lag1
+      - age_30_44_turnout_lag1
+      - age_45_64_turnout_lag1
+      - age_65_plus_turnout_lag1
+      - lineage_class_b
+    categorical:
+      - entity_id
+      - election_family
+  electoral_eceg:
+    extends: electoral
+    numeric:
+      - eceg_female_share
+      - eceg_adult_share
+      - eceg_older_share
+      - eceg_illiteracy_share_15_plus
+      - eceg_economic_activity_share_12_plus
+      - eceg_disability_share
+      - eceg_indigenous_language_share_3_plus
+      - eceg_internet_share_dwellings
+      - eceg_average_schooling

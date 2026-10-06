@@ -1,15 +1,15 @@
 # RADAR 27 — Plan maestro de ejecución
-## Protocolo para que un agente construya el proyecto de principio a fin con trazabilidad y auditoría
+## Protocolo de ejecución en notebooks con trazabilidad, explicación y reproducción por el equipo
 
 **Proyecto:** RADAR 27  
 **Reto:** Predicción y escenarios de riesgo de abstención  
-**Propósito de este archivo:** servir como contrato operativo. Un agente debe poder seguirlo sin reinterpretar el diseño, desde la descarga de los datos hasta la generación de modelos, mapas, dashboard y entregables.
+**Propósito de este archivo:** servir como contrato operativo. Un agente debe poder seguirlo sin reinterpretar el diseño, desde la descarga de los datos hasta la generación de modelos, mapas, dashboard y entregables. Toda etapa analítica se ejecutará en notebooks Jupyter con código visible, resultados e interpretación en Markdown. El equipo deberá poder reproducir la ejecución de referencia después de clonar el repositorio y obtener los datos y dependencias documentados.
 
 ---
 
 # 0. Regla máxima
 
-> **Nada entra al análisis si no puede rastrearse hasta su fuente, su transformación y su versión de código.**
+> **Nada entra al análisis si no puede rastrearse hasta su fuente, su transformación, su versión de código y el notebook y celda que lo produjeron.**
 
 El proyecto debe priorizar:
 
@@ -32,12 +32,12 @@ El proyecto sólo está completo cuando existen:
 
 - datos crudos inmutables;
 - manifiesto de fuentes y hashes;
-- scripts reproducibles de descarga;
+- notebook reproducible de descarga y utilidades de ingesta auditables;
 - diccionario de datos;
 - reporte de calidad;
 - dataset analítico versionado;
 - geometrías validadas;
-- EDA reproducible;
+- EDA reproducible con tablas, figuras, código e interpretación dentro de notebooks;
 - targets formalmente definidos;
 - features documentadas;
 - splits temporales congelados;
@@ -56,7 +56,11 @@ El proyecto sólo está completo cuando existen:
 - README de reproducción;
 - reporte metodológico;
 - presentación de máximo 10 diapositivas;
-- registro de limitaciones y decisiones.
+- registro de limitaciones y decisiones;
+- notebooks de todas las etapas, con Markdown antes y después de cada bloque analítico;
+- copias ejecutadas y HTML con código visible;
+- registro de artefactos que relacione cada resultado con su notebook/celda;
+- reproducción de referencia comprobada por otro integrante desde un clon limpio.
 
 ---
 
@@ -94,6 +98,14 @@ Archivos obligatorios:
 - SHAP;
 - MAPIE o implementación propia validada para conformal prediction;
 - PyTorch/PyTorch Geometric únicamente para challengers de embeddings/GNN.
+
+## Notebooks y ejecución
+
+- JupyterLab e ipykernel para trabajar y ejecutar manualmente;
+- nbformat y nbclient para ejecución automatizada con kernel limpio;
+- nbconvert para HTML de auditoría con código visible.
+
+Incluir estas dependencias en el lockfile y verificar que el kernel use el entorno del proyecto.
 
 ## Tracking
 
@@ -144,12 +156,15 @@ radar27/
 │   ├── MODELING_CONTRACT.md
 │   ├── ID_CONTRACT.md
 │   ├── DECISION_LOG.md
+│   ├── REPRODUCTION_AUDIT.md
 │   ├── LIMITATIONS.md
 │   └── SOURCES.md
 ├── configs/
 │   ├── sources.yaml
 │   ├── features.yaml
 │   ├── models.yaml
+│   ├── notebook_pipeline.yaml
+│   ├── reproduction_reference.yaml
 │   └── dashboard.yaml
 ├── src/radar27/
 │   ├── ingest/
@@ -165,11 +180,27 @@ radar27/
 │   ├── scenarios/
 │   ├── optimize/
 │   └── viz/
+├── scripts/
+│   └── run_notebooks.py      # ejecuta notebooks; no contiene otro análisis
 ├── notebooks/
-│   ├── 00_source_audit.ipynb
-│   ├── 01_raw_eda.ipynb
-│   ├── 02_panel_eda.ipynb
-│   └── 03_model_diagnostics.ipynb
+│   ├── README.md
+│   ├── 00_setup_sources_download.ipynb
+│   ├── 01_raw_schema_audit.ipynb
+│   ├── 02_clean_ids_harmonization.ipynb
+│   ├── 03_geography_graph.ipynb
+│   ├── 04_panel_build_audit.ipynb
+│   ├── 05_eda.ipynb
+│   ├── 06_targets_splits_features.ipynb
+│   ├── 07_baselines_regressions.ipynb
+│   ├── 08_boosting_backtests.ipynb
+│   ├── 09_embeddings_analogues.ipynb
+│   ├── 10_gnn_challenger.ipynb
+│   ├── 11_comparison_robustness_selection.ipynb
+│   ├── 12_uncertainty_explanations.ipynb
+│   ├── 13_risk_anomalies.ipynb
+│   ├── 14_scenarios_optimization.ipynb
+│   ├── 15_maps_exports_dashboard.ipynb
+│   └── 16_reproducibility_audit.ipynb
 ├── tests/
 │   ├── test_ids.py
 │   ├── test_schemas.py
@@ -182,17 +213,161 @@ radar27/
 │   ├── tables/
 │   ├── models/
 │   ├── geo/
-│   └── reports/
+│   ├── reports/
+│   └── runs/                # notebooks ejecutados, HTML y registros por run_id
 ├── app/
 │   └── streamlit_app.py
 └── mlruns/
 ```
 
-## Regla
+## 3.1 Regla obligatoria: análisis en notebooks
 
-Los notebooks son para inspección y comunicación.
+**Los notebooks son la fuente ejecutable y auditable del análisis.** La descarga y sus comprobaciones, limpieza, armonización, EDA, transformaciones, grafos, embeddings, regresiones, entrenamiento, evaluación, incertidumbre, explicabilidad, escenarios, optimización y visualizaciones deben ejecutarse desde notebooks y mostrar sus resultados en ellos.
 
-Toda transformación que produzca un resultado final debe existir como código en `src/`.
+Cada notebook debe permitir responder: **¿qué datos entraron, qué código produjo este resultado, qué parámetros se usaron y cómo se interpreta?** No basta con cargar una imagen, una tabla de coeficientes o un modelo generado fuera del notebook.
+
+`src/radar27/` puede contener utilidades reutilizables y comprobadas para descargas, validación, geometría, serialización y funciones compartidas con la app. Los notebooks deben mostrar las llamadas, sus argumentos y sus comprobaciones. Las decisiones analíticas, fórmulas, filtros, especificaciones de regresión, preprocesamiento, separación de folds, entrenamiento y construcción de figuras deben ser visibles en celdas. Si se extrae una función analítica común a `src/`, el notebook debe enlazar su implementación relativa y mostrar su código relevante en una celda de auditoría o apéndice; no duplicar una segunda implementación que pueda divergir. La app debe reutilizar esa misma lógica cuando la necesite.
+
+No aceptar una única celda `run_pipeline()` o `train_all()` que oculte todo el procedimiento. Tampoco mantener un pipeline alternativo de scripts que produzca los resultados oficiales por una ruta diferente. Los scripts de ejecución automatizan los notebooks; no sustituyen su análisis.
+
+La aplicación Streamlit sigue siendo una app: consume los artefactos exportados por los notebooks y reutiliza las funciones compartidas de escenarios. Todas las cifras, mapas y simulaciones de la demo deben tener un equivalente reproducible y explicado dentro de un notebook.
+
+## 3.2 Índice obligatorio de notebooks
+
+Crear `notebooks/README.md` con esta ruta de lectura y `configs/notebook_pipeline.yaml` con el orden real de ejecución, entradas, salidas, dependencias y condiciones de activación. Los números fijan el orden de lectura; el manifiesto fija las dependencias. No ejecutar simplemente todos los archivos encontrados por orden alfabético.
+
+| Notebook | Contenido y resultados auditables |
+|---|---|
+| `00_setup_sources_download.ipynb` | Entorno, configuración, fuentes, descarga, hashes e inventario de ZIP. |
+| `01_raw_schema_audit.ipynb` | Auditoría física, esquemas por año, nulos, duplicados y diccionario inicial. |
+| `02_clean_ids_harmonization.ipynb` | Contrato de IDs, limpieza, homologación, exclusiones y reconciliación contable. |
+| `03_geography_graph.ipynb` | Cartografía, CRS, joins, geometrías, vecinos y grafo de contigüidad. |
+| `04_panel_build_audit.ipynb` | Construcción de ambos paneles, cobertura y validaciones. |
+| `05_eda.ipynb` | EDA temporal, territorial y demográfico, Moran/LISA, tablas y mapas descriptivos. |
+| `06_targets_splits_features.ipynb` | Target, corte informativo, folds congelados, features históricas, relativas y espaciales. |
+| `07_baselines_regressions.ipynb` | Baselines y Elastic Net; cualquier otra regresión que se justifique, con especificación y diagnósticos. |
+| `08_boosting_backtests.ipynb` | Boosting tabular y espacial, tuning permitido, predicciones fuera de muestra y métricas. |
+| `09_embeddings_analogues.ipynb` | Node2Vec, embedding temporal si procede, análogos, UMAP y estabilidad. |
+| `10_gnn_challenger.ipynb` | Challenger opcional: arquitectura, entrenamiento, validación y resultados por seed. |
+| `11_comparison_robustness_selection.ipynb` | Ablaciones, comparación por fold, sensibilidad, errores por territorio y selección final. |
+| `12_uncertainty_explanations.ipynb` | Calibración separada, cobertura, intervalos, SHAP y explicación local/global. |
+| `13_risk_anomalies.ipynb` | Scores, semáforo, cambios atípicos, revisión de casos y mapas de incertidumbre. |
+| `14_scenarios_optimization.ipynb` | Escenarios con/sin intervención, sensibilidad, priorización y optimización. |
+| `15_maps_exports_dashboard.ipynb` | Mapas finales, exportables y equivalencia de resultados con la app. |
+| `16_reproducibility_audit.ipynb` | Verificación de artefactos, comparación con la referencia y resumen de reproducibilidad. |
+
+Las secciones metodológicas posteriores conservan sus requisitos, pero deben implementarse en el notebook asignado. Todos los notebooks analíticos se ejecutan con kernel independiente y entradas explícitas; comparten archivos versionados, no variables en memoria.
+
+`07` y `08` se ejecutan antes de los challengers. `09` y `10` deben reportar métricas comparables a los baselines; `11` integra la evidencia. Después de seleccionar el modelo se repiten su calibración y explicación oficiales en `12`; exploraciones preliminares deben identificarse como tales. `16` lee los registros ya producidos por `00`–`15`; el runner agrega su estado final después, sin crear una dependencia circular.
+
+## 3.3 Contrato de Markdown, código y resultados
+
+Cada notebook debe abrir con Markdown que explique:
+
+- pregunta que responde y lugar en el proyecto;
+- entradas, versiones/hashes y notebooks previos necesarios;
+- unidad de observación, muestra y fechas disponibles;
+- métodos, supuestos y criterios de aceptación;
+- outputs que generará y tiempo/memoria aproximados medidos.
+
+Cada bloque analítico debe seguir esta secuencia:
+
+1. **Markdown antes del código:** qué se hará, por qué, variables y unidades, filtros, supuestos y qué resultado se espera comprobar.
+2. **Celda de código visible:** cálculos, parámetros y llamadas relevantes; usar IDs de celda estables y etiquetas para ubicar resultados.
+3. **Output inmediatamente debajo:** figura, tabla, coeficientes, métricas o validaciones; mostrar también observaciones excluidas y advertencias pertinentes.
+4. **Markdown después del resultado:** cómo leerlo, hallazgos obtenidos, magnitud, comparación con baseline, limitaciones y decisión que permite tomar.
+
+La explicación posterior debe hablar de los resultados reales de esa ejecución. No dejar frases genéricas como “interpretar aquí” ni inventar una mejora antes de entrenar. Las cifras y comparaciones que cambian al reejecutar deben generarse desde los objetos calculados mediante texto Markdown renderizado con `IPython.display.Markdown`, junto con una celda Markdown de interpretación metodológica. Las conclusiones cualitativas escritas a mano deben señalar el `run_id` al que corresponden y revisarse al cambiar datos/modelos; una conclusión no revisada debe marcarse como pendiente en la nueva ejecución.
+
+Evitar celdas enormes que mezclen carga, ajuste, evaluación y veinte gráficos. Separar esos pasos para que el equipo pueda auditar cada uno. No ocultar código en las versiones HTML de auditoría. SQL, fórmulas de transformación y filtros también deben verse.
+
+Al final de cada notebook incluir Markdown con hallazgos, verificaciones aprobadas/fallidas, decisiones, limitaciones, outputs y siguiente paso. La ausencia de datos suficientes o el descarte de un challenger también son resultados documentables.
+
+### Requisito especial para cada regresión y modelo
+
+Mostrar explícitamente:
+
+- target, unidad, horizonte y ecuación/especificación cuando aplique;
+- lista de regresores/features, transformaciones, categorías de referencia e imputación;
+- filas, secciones y elecciones usadas para train, validación, calibración y test;
+- pipeline, estimador, hiperparámetros efectivos, seed y código de `fit`/`predict`;
+- tuning/early stopping dentro de entrenamiento/validación, sin usar test para elegir parámetros;
+- evaluación por fold y contra baseline, sin limitarse a resultados in-sample;
+- diagnósticos relevantes, fallos y tiempo de ejecución.
+
+Para Elastic Net mostrar coeficientes, intercepto y escala de las variables. Si se incorporan regresiones econométricas, explicar la interpretación de coeficientes, unidades, ponderaciones y la elección de errores estándar frente a dependencia territorial/temporal. No agregar OLS o regresiones adicionales sólo para llenar el notebook. No atribuir p-valores convencionales a coeficientes penalizados ni presentar asociaciones como causalidad.
+
+Para boosting mostrar configuración, curvas de entrenamiento cuando estén disponibles, importancia y SHAP en el notebook correspondiente. Para embeddings/GNN mostrar inputs, máscaras, aristas permitidas, arquitectura, función de pérdida, entrenamiento y criterios de parada. Un bucle es válido si su código está visible y los resultados identifican cada combinación de modelo, fold y seed.
+
+### Requisito especial para cada figura
+
+La celda debe contener el código que construye la figura a partir de los datos y la exporta. Usar el mismo objeto para mostrarla en el notebook y guardarla. Adjuntar Markdown que explique ejes, unidades, colores, población, ponderación y significado del patrón observado. En mapas, explicar CRS, cobertura, datos faltantes y umbrales de la leyenda. En intervalos predictivos, distinguir cobertura nominal y observada.
+
+## 3.4 Ejecución desde cero y estado limpio
+
+La primera celda de código configura una raíz de proyecto detectable desde la ubicación del notebook, rutas relativas, `params.yaml`, perfil y semillas. Nunca incluir rutas personales absolutas, `os.chdir` a una carpeta del autor, claves, tokens o datos pegados manualmente.
+
+Todos los notebooks deben funcionar con **Restart Kernel → Run All**, de arriba hacia abajo, si sus dependencias declaradas están disponibles. La secuencia completa debe reconstruirlas desde los datos crudos. No depender de celdas ejecutadas fuera de orden, widgets ajustados manualmente ni variables de otro notebook. Cada notebook comprueba los hashes de sus entradas y falla con un mensaje útil si falta un requisito.
+
+Crear `scripts/run_notebooks.py` como orquestador mediante `nbclient` y `nbformat`, con ejecución separada por notebook y exportación mediante `nbconvert`. Debe:
+
+1. leer el manifiesto de notebooks y resolver sus dependencias;
+2. validar parámetros, datos, entorno y perfil antes de entrenar;
+3. generar un `run_id` único y registrar commit, cambios locales, lockfile, configuración, plataforma y hardware;
+4. ejecutar cada notebook con kernel nuevo, directorio de trabajo definido, timeout configurable y `allow_errors=False`;
+5. escribir copias ejecutadas en `artifacts/runs/<run_id>/notebooks/` y HTML con código visible en `artifacts/runs/<run_id>/html/`;
+6. guardar logs, tiempos, outputs y manifiestos por ejecución sin sobrescribir evidencia anterior;
+7. detenerse ante un error, conservar el notebook parcial y no declarar una ejecución incompleta como reproducida;
+8. validar artefactos y emitir un resumen final de gates, comparaciones y discrepancias.
+
+Los notebooks fuente en `notebooks/` conservan celdas de código y Markdown en Git, con outputs pesados limpios antes del commit. Conservar las copias ejecutadas completas y HTML mediante DVC o el almacenamiento de artefactos documentado. El README debe ofrecer ambos: abrir el código y leer una ejecución completa con sus resultados. No limpiar los outputs de la copia auditada.
+
+Definir perfiles explícitos en `params.yaml`: `core` para la solución tabular completa y `full` para incluir challengers habilitados. Una prueba reducida debe llamarse `smoke` y no validar las cifras oficiales. La referencia final registra su perfil y lista exacta de notebooks/modelos. No omitir entrenamiento silenciosamente ni usar outputs guardados para simular una reejecución. Un challenger descartado requiere motivo y gate registrado; si contribuye a las cifras del reporte, su ejecución es obligatoria en el perfil de referencia.
+
+## 3.5 Trazabilidad de una cifra hasta su celda
+
+Crear `artifacts/runs/<run_id>/artifact_registry.csv` con una fila por figura, tabla, mapa, modelo, predicción y exportable. Campos mínimos:
+
+```text
+artifact_id, artifact_path, artifact_sha256, artifact_type,
+notebook_path, notebook_source_sha256, cell_id, cell_tag,
+input_manifest_path, config_sha256, git_commit, run_id,
+model_id, fold_id, seed, generated_at
+```
+
+El hash del notebook en el registro corresponde al archivo fuente ejecutado. Registrar el hash de la copia ejecutada sólo después de guardar sus outputs, en el manifiesto de ejecución, para evitar referencias circulares. Registrar también implementaciones compartidas y hashes de sus archivos cuando una celda las utilice. Para salidas generadas dentro de un bucle, un mismo `cell_id` puede tener varios artefactos distinguidos por modelo/fold/seed. Los manifiestos de entrada deben resolver las dependencias anteriores hasta sus datos crudos.
+
+Los IDs de celda deben conservarse al editar; no referenciar sólo “celda 17”, porque su posición puede cambiar. Las figuras/tablas llevan un `artifact_id` que permite buscar su notebook y celda en el registro. Las cifras del reporte y del pitch deben enlazar a ese registro. `notebooks/README.md` incluye un índice: resultado → notebook → celda/tag → artefacto.
+
+## 3.6 Reproducción por otro integrante del equipo
+
+El README debe describir un camino completo desde un clon limpio, requisitos para instalar `uv` y `make`, sistema operativo probado, recursos medidos y acceso a datos. Implementar esta interfaz:
+
+```bash
+git clone <URL_REAL_DEL_REPO> radar27
+cd radar27
+uv sync --locked
+make fetch-data
+make reproduce
+```
+
+El agente sustituirá el marcador por la URL real cuando exista el repositorio; estos comandos son el contrato a implementar, no evidencia de que el proyecto ya se ejecutó.
+
+`make fetch-data` obtiene la instantánea cruda congelada desde un remoto DVC configurado y accesible al equipo. Si no se usa remoto, debe descargar las fuentes oficiales y validar que coincidan con los hashes de referencia. Si una fuente cambió, se detiene y documenta la diferencia; no sustituye los datos en silencio. Documentar permisos y variables de entorno necesarios sin incluir credenciales. Clonar el repo por sí solo no descarga automáticamente datos grandes.
+
+`make reproduce` reejecuta los notebooks del perfil oficial desde los crudos disponibles, reconstruye limpieza, features, ajustes, métricas, mapas y escenarios, y compara contra `configs/reproduction_reference.yaml`. Ese archivo debe guardar la ejecución de referencia, perfil, hashes, artefactos comparables y tolerancias predefinidas. No limitarse a recuperar los modelos ya entrenados con DVC.
+
+Para ejecutar manualmente:
+
+```bash
+uv run jupyter lab
+```
+
+Leer `notebooks/README.md` y ejecutar cada notebook en el orden declarado mediante Restart Kernel → Run All. Todos los parámetros deben venir de configuración; editar configuración crea una nueva ejecución y no reproduce automáticamente la referencia.
+
+La comprobación debe exigir igualdad exacta en IDs, splits, conteos y hashes de crudos. Para resultados numéricos de modelos, definir tolerancias antes de comparar, según plataforma y algoritmo. Separar timestamps/metadatos de los valores analíticos: una nueva fecha de ejecución no es una diferencia de resultados. No exigir identidad binaria de PNG, HTML o modelos serializados entre plataformas; verificar datos de figura, parámetros y predicciones. Registrar cualquier no determinismo de GPU y variación fuera de tolerancia como discrepancia.
+
+**Criterio de aceptación:** otro integrante del equipo ejecuta el perfil oficial desde un clon limpio, sin instrucciones privadas del autor, y obtiene resultados analíticos concordantes dentro de las tolerancias registradas. Su informe debe distinguir qué se reprodujo, qué falló y qué no se ejecutó. Crear este protocolo no equivale a superar esa auditoría: sólo declarar éxito tras realizarla.
 
 ---
 
@@ -234,7 +409,7 @@ Agregar posteriormente la URL exacta de la cartografía realmente utilizada.
 - Content-Type;
 - Last-Modified si existe;
 - ETag si existe;
-- script/commit que ejecutó la descarga.
+- notebook/celda, utilidad de descarga y commit que ejecutaron la descarga.
 
 Guardar en:
 
@@ -243,6 +418,8 @@ Guardar en:
 ---
 
 # 5. Fase 1 — Ingesta
+
+**Ejecución y evidencia:** `notebooks/00_setup_sources_download.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 ## 5.1 Descargar automáticamente
 
@@ -299,6 +476,8 @@ No avanzar hasta tener:
 
 # 6. Fase 2 — Auditoría física de archivos
 
+**Ejecución y evidencia:** `notebooks/01_raw_schema_audit.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
+
 Antes de unir nada:
 
 crear una tabla por archivo con:
@@ -347,16 +526,18 @@ No continuar con armonización hasta entender esta tabla.
 
 # 7. Fase 3 — Contrato de IDs
 
+**Ejecución y evidencia:** `notebooks/02_clean_ids_harmonization.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
+
 Crear `docs/ID_CONTRACT.md`.
 
 La llave maestra de sección debe definirse explícitamente.
 
 Ejemplo provisional:
 
-\[
+$$
 section\_id =
 ENTIDAD\_2D + SECCION\_4D
-\]
+$$
 
 pero NO implementar esta fórmula hasta verificar los catálogos reales.
 
@@ -380,6 +561,8 @@ pero NO implementar esta fórmula hasta verificar los catálogos reales.
 ---
 
 # 8. Fase 4 — Cartografía
+
+**Ejecución y evidencia:** `notebooks/03_geography_graph.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 La página oficial indica que la plataforma 2009–2024 toma como base cartografía electoral con corte a mayo de 2023.
 
@@ -427,6 +610,8 @@ Secciones sin vecinos:
 
 # 9. Fase 5 — Estandarización de datos
 
+**Ejecución y evidencia:** `notebooks/02_clean_ids_harmonization.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
+
 Crear un esquema canónico.
 
 Ejemplo:
@@ -460,27 +645,41 @@ unspecified_vote
 - porcentajes recalculados desde conteos cuando sea posible;
 - no confiar en porcentaje publicado si existen numerador y denominador sin comprobarlo.
 
-Definir:
+Definir, conforme al manual oficial de la plataforma (págs. 17–18) y sujeto a la comprobación de los campos de cada ZIP:
 
-\[
+$$
 participation=
-\frac{voted}{nominal\_list}
-\]
+\frac{voted}{voted + did\_not\_vote}
+$$
 
-y documentar cualquier desviación de la definición oficial.
+$$
+abstention=
+\frac{did\_not\_vote}{voted + did\_not\_vote}
+$$
+
+$$
+unspecified\_share=
+\frac{unspecified}{nominal\_list}
+$$
+
+Los registros no especificados no se clasifican como abstención. Si el denominador es cero, el indicador es no definido. Para agregar territorios o grupos, sumar numeradores y denominadores compatibles antes de dividir. `voted / nominal_list` puede calcularse únicamente como indicador adicional de sensibilidad, con nombre propio; no presentarlo como la participación oficial.
+
+**Trazabilidad de la corrección (2026-10-05):** la versión provisional anterior definía `participation = voted / nominal_list`. Se sustituyó por las fórmulas de las páginas 17–18 del manual oficial a petición explícita del alcance de la fase 1. La comprobación contra los TXT incluidos en los ZIP se documenta en `notebooks/01_raw_schema_audit.ipynb` y `docs/INDICATOR_DEFINITIONS.md`.
 
 ---
 
 # 10. Fase 6 — Validación contable
 
+**Ejecución y evidencia:** `notebooks/02_clean_ids_harmonization.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
+
 Esta fase es obligatoria.
 
 Para cada combinación donde aplique:
 
-\[
+$$
 voted + did\_not\_vote + unspecified
 \approx nominal\_list
-\]
+$$
 
 Definir tolerancia sólo después de entender el esquema.
 
@@ -500,15 +699,17 @@ No corregir automáticamente diferencias sin explicación.
 
 # 11. Fase 7 — Panel analítico
 
+**Ejecución y evidencia:** `notebooks/04_panel_build_audit.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
+
 Construir al menos dos tablas.
 
 ## A. `section_election_panel`
 
 Una fila:
 
-\[
+$$
 section \times election
-\]
+$$
 
 Campos agregados:
 
@@ -523,9 +724,9 @@ Campos agregados:
 
 Mayor granularidad:
 
-\[
+$$
 section \times election \times sex \times age\_group
-\]
+$$
 
 Se utiliza para construir perfiles demográficos agregados, no necesariamente para el modelo principal.
 
@@ -535,7 +736,9 @@ Guardar en Parquet particionado por `election_year`.
 
 # 12. Fase 8 — EDA obligatorio
 
-El EDA no debe ser sólo visual.
+**Ejecución y evidencia:** `notebooks/05_eda.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
+
+El EDA debe calcularse y visualizarse en `05_eda.ipynb`. Cada tabla, estadístico y gráfico debe mostrar su código y explicar la pregunta, denominador, ponderación y resultado observado. No limitarse a cargar imágenes exportadas.
 
 ## 12.1 Integridad
 
@@ -594,11 +797,13 @@ Generar automáticamente:
 
 `artifacts/reports/eda_report.html`
 
-y no depender de capturas manuales.
+a partir del notebook ejecutado, con código y outputs visibles; no depender de capturas manuales.
 
 ---
 
 # 13. Fase 9 — Definición formal del target
+
+**Ejecución y evidencia:** `notebooks/06_targets_splits_features.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 Antes de entrenar cualquier modelo crear:
 
@@ -622,26 +827,26 @@ Dos candidatos:
 
 ### Target A — participación futura
 
-\[
+$$
 y_{i,t}=participation_{i,t}
-\]
+$$
 
 ### Target B — deterioro relativo
 
-\[
+$$
 d_{i,t} =
 participation_{i,t}
 -
 participation_{i,t-1}^{same-type}
-\]
+$$
 
 y clasificar:
 
-\[
+$$
 risk_{i,t}=1[d_{i,t}<-\tau]
-\]
+$$
 
-donde \(\tau\) se define ex ante.
+donde $\tau$ se define ex ante.
 
 ## Preferencia
 
@@ -652,19 +857,21 @@ El dashboard puede utilizar:
 - estimación continua;
 - score de deterioro.
 
-No fijar \(\tau\) después de ver qué valor produce las mejores métricas.
+No fijar $\tau$ después de ver qué valor produce las mejores métricas.
 
 ---
 
 # 14. Fase 10 — Prevención de leakage
 
+**Ejecución y evidencia:** `notebooks/06_targets_splits_features.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
+
 Crear `tests/test_leakage.py`.
 
-Para cada ejemplo de predicción con target en \(t\):
+Para cada ejemplo de predicción con target en $t$:
 
-\[
+$$
 max(feature\_date) < target\_date
-\]
+$$
 
 Ninguna feature puede utilizar:
 
@@ -681,6 +888,8 @@ Todos los escaladores, imputadores, PCA/autoencoders y transformadores supervisa
 ---
 
 # 15. Fase 11 — Splits congelados
+
+**Ejecución y evidencia:** `notebooks/06_targets_splits_features.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 Guardar un archivo:
 
@@ -719,6 +928,8 @@ Opciones:
 ---
 
 # 16. Fase 12 — Feature engineering
+
+**Ejecución y evidencia:** `notebooks/06_targets_splits_features.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 Todas las features deben documentarse en `configs/features.yaml`.
 
@@ -773,11 +984,11 @@ Construir proporciones, no sólo conteos.
 
 Ejemplo:
 
-\[
+$$
 share_{18-24}
 =
 \frac{LN_{18-24}}{LN_{total}}
-\]
+$$
 
 Crear:
 
@@ -793,7 +1004,9 @@ No agregar una variable si el denominador o definición no es claro.
 
 # 17. Fase 13 — Features espaciales
 
-Para cada target \(t\), utilizar sólo datos de vecinos anteriores a \(t\).
+**Ejecución y evidencia:** `notebooks/06_targets_splits_features.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
+
+Para cada target $t$, utilizar sólo datos de vecinos anteriores a $t$.
 
 Features:
 
@@ -811,21 +1024,23 @@ Features:
 
 Comparar:
 
-\[
+$$
 M2 = boosting(tabular)
-\]
+$$
 
 vs.
 
-\[
+$$
 M3 = boosting(tabular + spatial)
-\]
+$$
 
 Reportar mejora real.
 
 ---
 
 # 18. Fase 14 — Análisis espacial descriptivo
+
+**Ejecución y evidencia:** `notebooks/05_eda.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 Antes de GNN:
 
@@ -845,6 +1060,8 @@ Registrar pesos espaciales y definición de vecindad.
 ---
 
 # 19. Fase 15 — Embedding de grafo
+
+**Ejecución y evidencia:** `notebooks/09_embeddings_analogues.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 ## Primera opción: Node2Vec
 
@@ -877,7 +1094,7 @@ No construir aristas a partir de participación del target.
 
 ### Predictiva
 
-Agregar \(z_i^{graph}\) al modelo y medir mejora.
+Agregar $z_i^{graph}$ al modelo y medir mejora.
 
 ### Vecindarios
 
@@ -894,6 +1111,8 @@ Reentrenar con varias seeds y medir similitud de vecinos.
 ---
 
 # 20. Fase 16 — Embedding temporal
+
+**Ejecución y evidencia:** `notebooks/09_embeddings_analogues.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 No utilizar un Transformer grande. Sólo seis elecciones no justifican una arquitectura enorme.
 
@@ -928,6 +1147,8 @@ Visualizar con UMAP únicamente para exploración, no como prueba cuantitativa.
 
 # 21. Fase 17 — Modelos
 
+**Ejecución y evidencia:** `notebooks/07_baselines_regressions.ipynb`, `notebooks/08_boosting_backtests.ipynb`, `notebooks/09_embeddings_analogues.ipynb`, `notebooks/10_gnn_challenger.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
+
 ## M0 — Naive
 
 Variantes:
@@ -939,7 +1160,7 @@ Variantes:
 
 ## M1 — Elastic Net
 
-Preprocesamiento dentro del pipeline.
+Preprocesamiento dentro del pipeline. Mostrar en `07_baselines_regressions.ipynb` la especificación, regresores, escalado, regularización, `fit`, `predict`, coeficientes y métricas por fold, con interpretación de unidades y límites.
 
 ## M2 — LightGBM/XGBoost
 
@@ -978,25 +1199,27 @@ No entrenar más de dos arquitecturas distintas durante el hackathon.
 
 # 22. Fase 18 — GNN
 
+**Ejecución y evidencia:** `notebooks/10_gnn_challenger.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
+
 ## Diseño conservador
 
 Input nodo:
 
-\[
+$$
 X_i^{pre-target}
-\]
+$$
 
 Adjacency:
 
-\[
+$$
 A^{geo}
-\]
+$$
 
 Output:
 
-\[
+$$
 \hat y_i
-\]
+$$
 
 o riesgo.
 
@@ -1020,12 +1243,14 @@ Eso fortalece el reporte.
 
 # 23. Fase 19 — Métricas
 
+**Ejecución y evidencia:** `notebooks/07_baselines_regressions.ipynb`, `notebooks/08_boosting_backtests.ipynb`, `notebooks/09_embeddings_analogues.ipynb`, `notebooks/10_gnn_challenger.ipynb`, `notebooks/11_comparison_robustness_selection.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
+
 ## Regresión
 
 - MAE;
 - RMSE;
 - median AE;
-- \(R^2\) como secundaria;
+- $R^2$ como secundaria;
 - error ponderado por lista nominal;
 - error por estado;
 - error por tipo de sección.
@@ -1056,6 +1281,8 @@ Eso fortalece el reporte.
 
 # 24. Fase 20 — Selección de modelo
 
+**Ejecución y evidencia:** `notebooks/11_comparison_robustness_selection.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
+
 Nunca elegir el modelo por una sola métrica.
 
 Crear scorecard:
@@ -1078,6 +1305,8 @@ Tomar la decisión mediante criterios predefinidos y documentar trade-offs.
 
 # 25. Fase 21 — Conformal prediction
 
+**Ejecución y evidencia:** `notebooks/12_uncertainty_explanations.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
+
 ## Objetivo
 
 Generar intervalos predictivos.
@@ -1088,10 +1317,10 @@ No calibrar con el test final.
 
 Reportar:
 
-\[
+$$
 Coverage =
 P(Y_i \in [L_i,U_i])
-\]
+$$
 
 Evaluar cobertura global y por:
 
@@ -1105,6 +1334,8 @@ Si la cobertura es heterogénea, probar conformal estratificado o técnicas adap
 ---
 
 # 26. Fase 22 — Explicabilidad
+
+**Ejecución y evidencia:** `notebooks/12_uncertainty_explanations.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 ## Global
 
@@ -1137,6 +1368,8 @@ El dashboard debe usar lenguaje como:
 
 # 27. Fase 23 — Territorios análogos
 
+**Ejecución y evidencia:** `notebooks/09_embeddings_analogues.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
+
 Construir índice de similitud.
 
 Comparar tres espacios:
@@ -1147,13 +1380,13 @@ Comparar tres espacios:
 
 Usar cosine distance.
 
-Para una sección \(i\):
+Para una sección $i$:
 
-\[
+$$
 NN_k(i)
 =
 \arg\min_j d(z_i,z_j)
-\]
+$$
 
 ## Validación
 
@@ -1171,6 +1404,8 @@ No utilizar vecinos del target para filtrar resultados.
 ---
 
 # 28. Fase 24 — Anomaly detection
+
+**Ejecución y evidencia:** `notebooks/13_risk_anomalies.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 Baseline:
 
@@ -1193,6 +1428,8 @@ Auditar top 100 manualmente.
 ---
 
 # 29. Fase 25 — Construcción del score de riesgo
+
+**Ejecución y evidencia:** `notebooks/13_risk_anomalies.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 No ocultar la fórmula.
 
@@ -1225,6 +1462,8 @@ Si se crea un score total:
 
 # 30. Fase 26 — Semáforo
 
+**Ejecución y evidencia:** `notebooks/13_risk_anomalies.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
+
 El semáforo debe derivarse de reglas reproducibles.
 
 No usar “rojo = top 33%” sin justificar.
@@ -1243,6 +1482,8 @@ Incluir sensibilidad a thresholds alternativos.
 ---
 
 # 31. Fase 27 — Escenarios de intervención
+
+**Ejecución y evidencia:** `notebooks/14_scenarios_optimization.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 Crear módulo puro:
 
@@ -1285,12 +1526,14 @@ Nunca guardar sólo el mapa sin sus parámetros.
 
 # 32. Fase 28 — Análisis de sensibilidad de escenarios
 
+**Ejecución y evidencia:** `notebooks/14_scenarios_optimization.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
+
 Ejecutar matriz:
 
-\[
+$$
 \delta \in
 \{0.5,1.0,2.0,3.0\}
-\]
+$$
 
 y distintas capacidades.
 
@@ -1307,37 +1550,39 @@ Si la política sugerida cambia completamente con una variación pequeña del su
 
 # 33. Fase 29 — Priorización de recursos
 
+**Ejecución y evidencia:** `notebooks/14_scenarios_optimization.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
+
 ## Baseline
 
 Ranking por riesgo.
 
 ## Alternativa
 
-\[
+$$
 priority_i=
 risk_i\times population_i\times confidence_i
-\]
+$$
 
 ## Optimización
 
 Si se utilizan costos:
 
-\[
+$$
 \max
 \sum_i b_i a_i
-\]
+$$
 
 sujeto a:
 
-\[
+$$
 \sum_i c_i a_i \le B
-\]
+$$
 
 y:
 
-\[
+$$
 a_i \in \{0,1\}
-\]
+$$
 
 Usar OR-Tools o scipy.optimize según formulación.
 
@@ -1353,6 +1598,8 @@ Si no existen:
 ---
 
 # 34. Fase 30 — Fairness y auditoría territorial
+
+**Ejecución y evidencia:** `notebooks/11_comparison_robustness_selection.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 Aunque no sea un modelo individual, evaluar distribución del error.
 
@@ -1373,6 +1620,8 @@ No optimizar directamente con atributos sensibles sin una justificación documen
 ---
 
 # 35. Fase 31 — Robustez
+
+**Ejecución y evidencia:** `notebooks/11_comparison_robustness_selection.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 Ejecutar:
 
@@ -1399,6 +1648,8 @@ Introducir intencionalmente una feature futura en un test de desarrollo y verifi
 ---
 
 # 36. Fase 32 — Visualizaciones analíticas
+
+**Ejecución y evidencia:** `notebooks/05_eda.ipynb`, `notebooks/12_uncertainty_explanations.ipynb`, `notebooks/13_risk_anomalies.ipynb`, `notebooks/14_scenarios_optimization.ipynb`, `notebooks/15_maps_exports_dashboard.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 Crear automáticamente:
 
@@ -1430,11 +1681,15 @@ Cada figura:
 - fuente;
 - fecha;
 - notas;
-- script que la generó.
+- notebook, ID/tag de celda y `artifact_id` que la generaron;
+- código de construcción, output visible y Markdown de interpretación;
+- parámetros, hashes de datos y commit de ejecución.
 
 ---
 
 # 37. Fase 33 — Dashboard
+
+**Ejecución y evidencia:** `notebooks/15_maps_exports_dashboard.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 ## Framework
 
@@ -1482,6 +1737,8 @@ Crear una versión simplificada sólo para visualización, preservando la origin
 
 # 38. Fase 34 — Exportables
 
+**Ejecución y evidencia:** `notebooks/15_maps_exports_dashboard.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
+
 Generar:
 
 ```text
@@ -1493,42 +1750,43 @@ artifacts/tables/scenario_comparison.csv
 artifacts/models/final_model.*
 ```
 
+Los paths anteriores describen la estructura de la publicación aprobada. Las ejecuciones de trabajo deben escribir bajo `artifacts/runs/<run_id>/` con esa estructura, sin sobrescribir versiones previas. La app debe seleccionar explícitamente la ejecución aprobada; evitar leer un modelo de una ejecución y features de otra.
+
 Cada tabla debe contener:
 
 - `model_version`;
 - `data_version`;
 - `generated_at`;
+- `run_id` y referencia al `artifact_id`;
 - columnas documentadas.
 
 ---
 
 # 39. Fase 35 — Auditoría de reproducibilidad
 
-Desde un entorno limpio:
+**Ejecución y evidencia:** `notebooks/16_reproducibility_audit.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
-```bash
-git clone ...
-uv sync
-dvc pull
-make reproduce
-```
+Desde un clon limpio y con el perfil oficial, seguir los comandos de la sección 3.6. El runner debe reejecutar los notebooks, con kernels nuevos, y reconstruir los resultados desde los crudos congelados. Obtener los archivos con DVC no sustituye esta ejecución.
 
-Debe producir:
+Debe producir y comparar:
 
-- panel;
-- features;
-- modelos;
-- métricas;
-- figuras;
-- exportables.
+- panel y features;
+- ajustes de regresiones y modelos;
+- predicciones fuera de muestra y métricas;
+- calibración, explicaciones y scores;
+- figuras, mapas, escenarios y exportables;
+- notebooks ejecutados con outputs y HTML con código visible;
+- registros de artefactos y resumen de diferencias contra la referencia.
 
-Registrar duración y memoria.
+Registrar duración, memoria, configuración, versiones y hardware. Crear `docs/REPRODUCTION_AUDIT.md` con autor de la auditoría, referencia, comandos, tolerancias, diferencias y estado final. Verificar tanto Restart Kernel → Run All en los notebooks como la secuencia automatizada completa.
 
-No aceptar pasos manuales ocultos.
+No aceptar pasos manuales ocultos, dependencia de outputs antiguos ni omisiones silenciosas. La auditoría pasa únicamente si otra persona reproduce las cifras de referencia dentro de las tolerancias predefinidas. Mientras no se haga, reportarla como pendiente.
 
 ---
 
 # 40. Fase 36 — Tests automatizados
+
+**Ejecución y evidencia:** `notebooks/16_reproducibility_audit.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 ## Data tests
 
@@ -1559,6 +1817,18 @@ No aceptar pasos manuales ocultos.
 - monotonicidad cuando corresponda;
 - no superar bounds 0–1.
 
+## Notebooks
+
+- IDs de celda únicos/estables y tags de resultados;
+- manifiesto de entradas, salidas y dependencias válido;
+- ejecución con kernel limpio, sin errores ni estado oculto;
+- código y outputs visibles para todo resultado oficial;
+- registro de artefactos resuelve notebook/celda y hashes;
+- interpretación numérica generada desde los resultados actuales;
+- fallos de gates bloquean los notebooks dependientes;
+- comparación con referencia dentro de tolerancias declaradas;
+- app y notebook producen el mismo escenario con iguales parámetros.
+
 ## Dashboard
 
 - archivo de datos disponible;
@@ -1568,6 +1838,8 @@ No aceptar pasos manuales ocultos.
 ---
 
 # 41. Fase 37 — Logging de decisiones
+
+**Ejecución y evidencia:** `notebooks/16_reproducibility_audit.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 Crear `docs/DECISION_LOG.md`.
 
@@ -1590,6 +1862,8 @@ Registrar decisiones importantes, incluyendo las que descartan técnicas.
 ---
 
 # 42. Fase 38 — Model cards
+
+**Ejecución y evidencia:** `notebooks/11_comparison_robustness_selection.ipynb`, `notebooks/12_uncertainty_explanations.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 Para el modelo final crear:
 
@@ -1615,6 +1889,8 @@ Debe incluir:
 
 # 43. Fase 39 — Data lineage
 
+**Ejecución y evidencia:** `notebooks/16_reproducibility_audit.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
+
 Crear `docs/DATA_LINEAGE.md`.
 
 Ejemplo:
@@ -1635,11 +1911,13 @@ predictions
 dashboard dataset
 ```
 
-Cada flecha debe apuntar a un script.
+Cada flecha debe apuntar al notebook y al ID/tag de celda que ejecutan esa transformación, a sus entradas y salidas versionadas y a las utilidades compartidas usadas. Enlazar el registro de artefactos de la ejecución correspondiente.
 
 ---
 
 # 44. Fase 40 — Entregable técnico
+
+**Ejecución y evidencia:** `notebooks/16_reproducibility_audit.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 La convocatoria pide un reporte metodológico y preventivo de 10–15 cuartillas.
 
@@ -1661,11 +1939,13 @@ Estructura propuesta:
 14. Recomendaciones de implementación.
 15. Apéndice técnico fuera del cuerpo si el formato lo permite.
 
-No esconder errores o resultados negativos.
+No esconder errores o resultados negativos. Cada resultado del reporte debe enlazar a su artefacto y notebook/celda de origen; las explicaciones del reporte deben concordar con la ejecución congelada.
 
 ---
 
 # 45. Fase 41 — Presentación de 10 slides
+
+**Ejecución y evidencia:** `notebooks/16_reproducibility_audit.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 Generar después de congelar resultados.
 
@@ -1684,6 +1964,10 @@ slide
 claim
 value
 source_artifact
+artifact_id
+notebook_path
+cell_id
+run_id
 commit
 ```
 
@@ -1692,6 +1976,8 @@ Esto evita copiar cifras desactualizadas.
 ---
 
 # 46. Fase 42 — Revisión final de lenguaje
+
+**Ejecución y evidencia:** `notebooks/16_reproducibility_audit.ipynb`. Aplicar el contrato de código, outputs y Markdown de la sección 3.
 
 Buscar frases causalmente indebidas:
 
@@ -1843,86 +2129,64 @@ Si hay más tiempo, usarlo para robustez y comunicación, no para añadir modelo
 - [ ] Model card.
 - [ ] Data lineage.
 - [ ] Limitations.
-- [ ] `make reproduce` funciona.
+- [ ] Todas las etapas analíticas se ejecutan en los notebooks asignados.
+- [ ] Cada bloque analítico tiene Markdown previo, código, output e interpretación posterior.
+- [ ] Regresiones/modelos muestran especificación, ajuste, predicción y evaluación.
+- [ ] Figuras y tablas tienen `artifact_id` y notebook/celda de origen.
+- [ ] Notebooks corren con Restart Kernel → Run All y dependencias declaradas.
+- [ ] Copias ejecutadas y HTML con código visible conservados.
+- [ ] Configuración, entorno, datos y perfil oficial están congelados.
+- [ ] `make reproduce` reejecuta los notebooks desde crudos y compara contra la referencia.
+- [ ] Otra persona completó la reproducción desde un clon limpio.
+- [ ] `docs/REPRODUCTION_AUDIT.md` documenta resultados y diferencias.
 
 ---
 
 # 50. Orden exacto que debe seguir un agente
 
-```text
-1. Leer convocatoria y manual.
-2. Crear repo y environment lock.
-3. Registrar fuentes.
-4. Descargar datos y calcular hashes.
-5. Inventariar archivos.
-6. Auditar schemas.
-7. Definir contrato de IDs.
-8. Conseguir y validar cartografía.
-9. Armonizar columnas.
-10. Reconciliar conteos.
-11. Construir panel.
-12. Ejecutar EDA.
-13. Congelar target.
-14. Congelar splits.
-15. Construir features históricas.
-16. Construir features relativas.
-17. Construir grafo.
-18. Construir features espaciales.
-19. Entrenar baselines.
-20. Entrenar Elastic Net.
-21. Entrenar boosting.
-22. Entrenar boosting + spatial.
-23. Evaluar y registrar.
-24. Calibrar incertidumbre.
-25. Explicar modelo.
-26. Entrenar Node2Vec.
-27. Evaluar embedding.
-28. Entrenar temporal embedding si procede.
-29. Ejecutar ablations.
-30. Entrenar GNN sólo si hay justificación.
-31. Seleccionar modelo final.
-32. Generar scores de riesgo.
-33. Construir detector de anomalías.
-34. Construir escenarios.
-35. Ejecutar sensibilidad.
-36. Construir priorización.
-37. Generar mapas/exportables.
-38. Construir dashboard.
-39. Auditar fairness territorial.
-40. Ejecutar tests.
-41. Reproducir desde cero.
-42. Congelar artefactos.
-43. Escribir reporte.
-44. Crear slides.
-45. Auditar todas las cifras del pitch.
-```
+1. Leer convocatoria y manual; registrar fuentes y alcance.
+2. Crear repo, entorno bloqueado, índice y manifiesto de notebooks.
+3. Implementar y ejecutar `00`–`04`: descarga, auditoría, IDs, limpieza, cartografía y panel; no saltar gates.
+4. Ejecutar `05`: EDA con código, outputs e interpretación; documentar decisiones.
+5. Ejecutar `06`: congelar targets/splits y construir features sin leakage.
+6. Ejecutar `07` y `08`: baselines, regresiones y boosting; evaluar fuera de muestra.
+7. Ejecutar `09` y, si se justifica, `10`: embeddings, análogos y GNN; registrar adopción o descarte.
+8. Ejecutar `11`: ablaciones, robustez, auditoría territorial y selección del modelo.
+9. Ejecutar `12`: calibración y explicaciones oficiales del modelo seleccionado.
+10. Ejecutar `13`: scores, anomalías y semáforo con fórmulas transparentes.
+11. Ejecutar `14`: escenarios, sensibilidad y priorización con supuestos explícitos.
+12. Ejecutar `15`: mapas, exportables y pruebas de equivalencia con la app.
+13. Implementar/completar tests y congelar configuración y referencia.
+14. Ejecutar la secuencia completa y `16` desde un clon limpio; conservar el informe de reproducción.
+15. Congelar la ejecución aprobada, escribir reporte y slides, y rastrear todas las cifras a notebook/celda.
+
+Actualizar el Markdown de cada notebook conforme se obtengan resultados y registrar decisiones. El índice anterior manda sobre cualquier listado de fases que sugiera ejecutar calibración oficial antes de la selección final.
 
 ---
 
 # 51. Comandos objetivo
 
-El repositorio debe converger hacia algo parecido a:
+El repositorio debe implementar:
 
 ```bash
 make setup
-make download
-make audit-raw
-make build-panel
-make eda
-make build-graph
-make features
-make train
-make evaluate
-make uncertainty
-make explain
-make scenarios
-make export
-make dashboard
-make test
+make fetch-data
+make notebooks
 make reproduce
+make test
+make dashboard
 ```
 
-Cada comando debe ser idempotente cuando sea razonable.
+- `make setup`: sincroniza el entorno bloqueado e instala el kernel del proyecto.
+- `make fetch-data`: obtiene la instantánea cruda y comprueba hashes; no descarga modelos para sustituir entrenamiento.
+- `make notebooks`: ejecuta la secuencia declarada para el perfil elegido y genera notebooks ejecutados/HTML y artefactos.
+- `make reproduce`: ejecuta la secuencia del perfil de referencia desde crudos, corre comprobaciones y compara resultados; debe detectar diferencias.
+- `make test`: ejecuta pruebas de contratos, leakage, escenarios y ejecución.
+- `make dashboard`: inicia la app con una ejecución aprobada explícita.
+
+Se pueden conservar atajos como `make eda`, `make train` o `make scenarios`, siempre que ejecuten los notebooks correspondientes y resuelvan sus dependencias validadas. No deben implementar otro pipeline de análisis.
+
+No ejecutar automáticamente `fetch-data` sobre una instantánea válida para actualizarla. Cada nueva ejecución conserva evidencia en su propio `run_id`. Registrar omisiones explícitas de challengers y no considerar una prueba `smoke` como reproducción oficial.
 
 ---
 
@@ -1992,6 +2256,11 @@ https://www.ine.mx/productos-geografia-electoral-descargables/
 18. No afirmar que 2009–2024 constituyen una serie temporal larga.
 19. No esconder que el backtest same-type tiene pocos cortes temporales.
 20. No prometer precisión de 2027 que los datos no permitan sostener.
+21. No entregar regresiones, EDA o visualizaciones oficiales sin código y outputs en notebooks.
+22. No depender del orden manual de ejecución ni de variables que no se construyan en Run All.
+23. No dejar interpretaciones de cifras de otra ejecución sin marcar/revisar.
+24. No presentar archivos recuperados del almacenamiento como modelos reentrenados.
+25. No declarar reproducibilidad sólo porque el notebook funciona en la máquina del autor.
 
 ---
 
@@ -2005,4 +2274,4 @@ El objetivo es poder decir:
 
 > **“Construimos un sistema reproducible. Cada capa fue comparada contra una alternativa más simple. Podemos mostrar qué información añadió, cuánto mejoró fuera de muestra, dónde falla, qué tan incierta es cada predicción y cómo cambian las decisiones cuando cambian los supuestos.”**
 
-Ese es el estándar del proyecto.
+El equipo debe poder abrir cualquier resultado, encontrar su notebook y celda, leer por qué se calculó, interpretar lo obtenido y regenerarlo desde un clon limpio. Ese es el estándar del proyecto.

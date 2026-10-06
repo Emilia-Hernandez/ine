@@ -1,0 +1,61 @@
+version: 1
+source:
+  source_id: inegi_eceg_2020_section
+  publisher: Instituto Nacional de Estadística y Geografía (INEGI)
+  title: Estadísticas Censales a Escalas Geoelectorales 2020
+  landing_page: https://www.inegi.org.mx/app/descarga/ficha.html?ag=0&f=csv&tit=540314
+  requested_url: https://www.inegi.org.mx/contenidos/programas/ccpv/2020/datosabiertos/geoelectorales/eceg_2020_csv.zip
+  local_zip: data/raw/inegi/eceg_2020_csv.zip
+  bytes: 20609412
+  sha256: db357fee6f869ec10c7c996e72d4ab6a339d10b20b8043f63ab5a256339708fe
+  official_identifier: MEX-INEGI.ESD2.01-CPV-2020
+  reference_date: 2020-03-15
+  published_or_modified: 2021-08-18
+  available_for_predictions_from: 2021-08-18
+  section_member: conjunto_de_datos/INE_SECCION_2020.csv
+  dictionary_member: diccionario_de_datos/Descriptor_indicadores_ECEG_Seccion_2020.csv.csv
+  metadata_member: metadatos/metadatos_eceg_censo_2020.txt
+
+selected_variables:
+  POBTOT:
+    output: eceg_population_total
+    role: denominator
+  POBFEM:
+    output: eceg_population_female
+    role: numerator
+  P_18YMAS:
+    output: eceg_population_18_plus
+    role: numerator
+  P_60YMAS:
+    output: eceg_population_60_plus
+    role: numerator
+  P_15YMAS:
+    output: eceg_population_15_plus
+    role: denominator
+  P_12YMAS:
+    output: eceg_population_12_plus
+    role: denominator
+  P_3YMAS:
+    output: eceg_population_3_plus
+    role: denominator
+  P15YM_AN:
+    output: eceg_population_15_plus_illiterate
+    role: numerator
+  PEA:
+    output: eceg_economically_active_population
+    role: numerator
+  PCON_DISC:
+    output: eceg_population_with_disability
+    role: numerator
+  P3YM_HLI:
+    output: eceg_population_3_plus_indigenous_language
+    role: numerator
+  VIVPAR_HAB:
+    output: eceg_inhabited_private_dwellings
+    role: denominator
+  VPH_INTER:
+    output: eceg_dwellings_with_internet
+    role: numerator
+  GRAPROES:
+    output: eceg_average_schooling
+    role: published_rate
