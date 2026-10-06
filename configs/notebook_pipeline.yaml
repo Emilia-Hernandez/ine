@@ -1,5 +1,5 @@
 version: 1
-profile: feature_model_evaluation
+profile: radar27_pipeline
 notebooks:
   - id: setup_sources_download
     order: 0
@@ -273,3 +273,282 @@ notebooks:
         type: report
         cell_id: write-feature-model-report
         cell_tag: artifact-feature-model-report
+  - id: uncertainty_spatial_validation
+    order: 6
+    path: notebooks/06_uncertainty_spatial_validation.ipynb
+    depends_on:
+      - feature_model_evaluation
+    inputs:
+      - configs/uncertainty.yaml
+      - artifacts/model_decision.json
+      - artifacts/tables/feature_mart_ab.parquet
+      - artifacts/tables/model_backtest_predictions.parquet
+    outputs:
+      - artifacts/tables/conformal_backtest_intervals.parquet
+      - artifacts/tables/conformal_coverage_metrics.csv
+      - artifacts/tables/conformal_calibration_summary.csv
+      - artifacts/tables/spatial_holdout_predictions.parquet
+      - artifacts/tables/spatial_robustness_metrics.csv
+      - artifacts/uncertainty_decision.json
+      - artifacts/reports/uncertainty_spatial_validation.html
+    artifacts:
+      - path: artifacts/tables/conformal_backtest_intervals.parquet
+        type: predictions
+        cell_id: build-conformal-intervals
+        cell_tag: artifact-conformal-intervals
+      - path: artifacts/tables/conformal_coverage_metrics.csv
+        type: metrics
+        cell_id: build-conformal-intervals
+        cell_tag: artifact-conformal-coverage
+      - path: artifacts/tables/conformal_calibration_summary.csv
+        type: calibration
+        cell_id: build-conformal-intervals
+        cell_tag: artifact-conformal-coverage
+      - path: artifacts/tables/spatial_holdout_predictions.parquet
+        type: predictions
+        cell_id: run-spatial-holdout
+        cell_tag: artifact-spatial-predictions
+      - path: artifacts/tables/spatial_robustness_metrics.csv
+        type: metrics
+        cell_id: run-spatial-holdout
+        cell_tag: artifact-spatial-metrics
+      - path: artifacts/uncertainty_decision.json
+        type: decision
+        cell_id: write-uncertainty-decision
+        cell_tag: artifact-uncertainty-decision
+      - path: artifacts/reports/uncertainty_spatial_validation.html
+        type: report
+        cell_id: write-uncertainty-report
+        cell_tag: artifact-uncertainty-report
+  - id: calibration_adaptation
+    order: 7
+    path: notebooks/07_calibration_adaptation.ipynb
+    depends_on:
+      - uncertainty_spatial_validation
+    inputs:
+      - configs/calibration_adaptation.yaml
+      - artifacts/tables/feature_mart_ab.parquet
+      - artifacts/tables/model_backtest_predictions.parquet
+      - artifacts/tables/conformal_backtest_intervals.parquet
+      - artifacts/uncertainty_decision.json
+    outputs:
+      - artifacts/tables/national_shift_estimates.csv
+      - artifacts/tables/shift_corrected_predictions.parquet
+      - artifacts/tables/shift_correction_metrics.csv
+      - artifacts/tables/adaptive_interval_predictions.parquet
+      - artifacts/tables/adaptive_interval_coverage.csv
+      - artifacts/tables/adaptive_interval_calibration.csv
+      - artifacts/calibration_adaptation_decision.json
+      - artifacts/reports/calibration_adaptation.html
+    artifacts:
+      - path: artifacts/tables/national_shift_estimates.csv
+        type: calibration
+        cell_id: estimate-national-shift
+        cell_tag: artifact-shift-estimates
+      - path: artifacts/tables/shift_corrected_predictions.parquet
+        type: predictions
+        cell_id: estimate-national-shift
+        cell_tag: artifact-shift-predictions
+      - path: artifacts/tables/shift_correction_metrics.csv
+        type: metrics
+        cell_id: estimate-national-shift
+        cell_tag: artifact-shift-metrics
+      - path: artifacts/tables/adaptive_interval_predictions.parquet
+        type: predictions
+        cell_id: compare-adaptive-intervals
+        cell_tag: artifact-adaptive-intervals
+      - path: artifacts/tables/adaptive_interval_coverage.csv
+        type: metrics
+        cell_id: compare-adaptive-intervals
+        cell_tag: artifact-adaptive-coverage
+      - path: artifacts/tables/adaptive_interval_calibration.csv
+        type: calibration
+        cell_id: compare-adaptive-intervals
+        cell_tag: artifact-adaptive-calibration
+      - path: artifacts/calibration_adaptation_decision.json
+        type: decision
+        cell_id: write-adaptation-decision
+        cell_tag: artifact-adaptation-decision
+      - path: artifacts/reports/calibration_adaptation.html
+        type: report
+        cell_id: write-adaptation-report
+        cell_tag: artifact-adaptation-report
+  - id: forecast_2027_experimental
+    order: 10
+    path: notebooks/08_forecast_2027_experimental.ipynb
+    depends_on:
+      - tabular_challengers
+    inputs:
+      - configs/forecast_2027.yaml
+      - configs/modeling.yaml
+      - artifacts/tables/feature_mart_ab.parquet
+      - artifacts/tables/feature_ablation_mart.parquet
+      - artifacts/tables/national_shift_estimates.csv
+      - artifacts/tables/shift_corrected_predictions.parquet
+      - artifacts/tables/tabular_challenger_predictions.parquet
+      - artifacts/tables/tabular_challenger_metrics.csv
+      - artifacts/tabular_challenger_decision.json
+      - artifacts/calibration_adaptation_decision.json
+    outputs:
+      - artifacts/tables/forecast_2027_feature_mart.parquet
+      - artifacts/tables/forecast_2027_model_units.parquet
+      - artifacts/tables/forecast_2027_section_predictions.parquet
+      - artifacts/tables/forecast_2027_interval_calibration.csv
+      - artifacts/tables/forecast_2027_summary.csv
+      - artifacts/forecast_2027_model_registry.json
+      - artifacts/forecast_2027_decision.json
+      - artifacts/reports/forecast_2027_experimental.html
+    artifacts:
+      - path: artifacts/tables/forecast_2027_feature_mart.parquet
+        type: feature_mart
+        cell_id: build-forecast-2027-features
+        cell_tag: artifact-forecast-features
+      - path: artifacts/tables/forecast_2027_model_units.parquet
+        type: predictions
+        cell_id: train-forecast-2027-model
+        cell_tag: artifact-forecast-model-units
+      - path: artifacts/forecast_2027_model_registry.json
+        type: registry
+        cell_id: train-forecast-2027-model
+        cell_tag: artifact-forecast-model-registry
+      - path: artifacts/tables/forecast_2027_section_predictions.parquet
+        type: predictions
+        cell_id: expand-forecast-2027-sections
+        cell_tag: artifact-forecast-sections
+      - path: artifacts/tables/forecast_2027_interval_calibration.csv
+        type: calibration
+        cell_id: expand-forecast-2027-sections
+        cell_tag: artifact-forecast-calibration
+      - path: artifacts/tables/forecast_2027_summary.csv
+        type: summary
+        cell_id: expand-forecast-2027-sections
+        cell_tag: artifact-forecast-summary
+      - path: artifacts/forecast_2027_decision.json
+        type: decision
+        cell_id: write-forecast-2027-decision
+        cell_tag: artifact-forecast-decision
+      - path: artifacts/reports/forecast_2027_experimental.html
+        type: report
+        cell_id: write-forecast-2027-report
+        cell_tag: artifact-forecast-report
+  - id: feature_ablation
+    order: 8
+    path: notebooks/09_feature_ablation.ipynb
+    depends_on:
+      - calibration_adaptation
+    inputs:
+      - configs/feature_ablation.yaml
+      - configs/modeling.yaml
+      - artifacts/tables/feature_mart_ab.parquet
+      - artifacts/tables/eceg_2020_section_features.parquet
+      - artifacts/tables/national_shift_estimates.csv
+      - artifacts/tables/backtest_metrics.csv
+    outputs:
+      - artifacts/tables/feature_ablation_mart.parquet
+      - artifacts/tables/feature_ablation_predictions.parquet
+      - artifacts/tables/feature_ablation_metrics.csv
+      - artifacts/tables/feature_ablation_registry.csv
+      - artifacts/feature_ablation_decision.json
+      - artifacts/reports/feature_ablation.html
+    artifacts:
+      - path: artifacts/tables/feature_ablation_mart.parquet
+        type: feature_mart
+        cell_id: build-feature-ablation-mart
+        cell_tag: artifact-feature-ablation-mart
+      - path: artifacts/tables/feature_ablation_predictions.parquet
+        type: predictions
+        cell_id: run-feature-ablation
+        cell_tag: artifact-feature-ablation-predictions
+      - path: artifacts/tables/feature_ablation_metrics.csv
+        type: metrics
+        cell_id: run-feature-ablation
+        cell_tag: artifact-feature-ablation-metrics
+      - path: artifacts/tables/feature_ablation_registry.csv
+        type: registry
+        cell_id: run-feature-ablation
+        cell_tag: artifact-feature-ablation-registry
+      - path: artifacts/feature_ablation_decision.json
+        type: decision
+        cell_id: write-feature-ablation-decision
+        cell_tag: artifact-feature-ablation-decision
+      - path: artifacts/reports/feature_ablation.html
+        type: report
+        cell_id: write-feature-ablation-report
+        cell_tag: artifact-feature-ablation-report
+  - id: tabular_challengers
+    order: 9
+    path: notebooks/10_tabular_challengers.ipynb
+    depends_on:
+      - feature_ablation
+    inputs:
+      - configs/tabular_challengers.yaml
+      - configs/feature_ablation.yaml
+      - artifacts/tables/feature_ablation_mart.parquet
+      - artifacts/tables/national_shift_estimates.csv
+      - artifacts/tables/backtest_metrics.csv
+    outputs:
+      - artifacts/tables/tabular_challenger_predictions.parquet
+      - artifacts/tables/tabular_challenger_metrics.csv
+      - artifacts/tables/tabular_challenger_registry.csv
+      - artifacts/tabular_challenger_decision.json
+      - artifacts/reports/tabular_challengers.html
+    artifacts:
+      - path: artifacts/tables/tabular_challenger_predictions.parquet
+        type: predictions
+        cell_id: run-tabular-challengers
+        cell_tag: artifact-challenger-predictions
+      - path: artifacts/tables/tabular_challenger_metrics.csv
+        type: metrics
+        cell_id: run-tabular-challengers
+        cell_tag: artifact-challenger-metrics
+      - path: artifacts/tables/tabular_challenger_registry.csv
+        type: registry
+        cell_id: run-tabular-challengers
+        cell_tag: artifact-challenger-registry
+      - path: artifacts/tabular_challenger_decision.json
+        type: decision
+        cell_id: write-tabular-challenger-decision
+        cell_tag: artifact-challenger-decision
+      - path: artifacts/reports/tabular_challengers.html
+        type: report
+        cell_id: write-tabular-challenger-report
+        cell_tag: artifact-challenger-report
+  - id: dense_neural_challenger
+    order: 11
+    path: notebooks/11_dense_neural_challenger.ipynb
+    depends_on:
+      - forecast_2027_experimental
+    inputs:
+      - configs/dense_neural_challenger.yaml
+      - configs/feature_ablation.yaml
+      - artifacts/tables/feature_ablation_mart.parquet
+      - artifacts/tables/tabular_challenger_metrics.csv
+      - artifacts/tables/national_shift_estimates.csv
+      - artifacts/tables/backtest_metrics.csv
+    outputs:
+      - artifacts/tables/dense_neural_predictions.parquet
+      - artifacts/tables/dense_neural_metrics.csv
+      - artifacts/tables/dense_neural_registry.csv
+      - artifacts/dense_neural_decision.json
+      - artifacts/reports/dense_neural_challenger.html
+    artifacts:
+      - path: artifacts/tables/dense_neural_predictions.parquet
+        type: predictions
+        cell_id: run-dense-neural-challenger
+        cell_tag: artifact-neural-predictions
+      - path: artifacts/tables/dense_neural_metrics.csv
+        type: metrics
+        cell_id: run-dense-neural-challenger
+        cell_tag: artifact-neural-metrics
+      - path: artifacts/tables/dense_neural_registry.csv
+        type: registry
+        cell_id: run-dense-neural-challenger
+        cell_tag: artifact-neural-registry
+      - path: artifacts/dense_neural_decision.json
+        type: decision
+        cell_id: write-dense-neural-decision
+        cell_tag: artifact-neural-decision
+      - path: artifacts/reports/dense_neural_challenger.html
+        type: report
+        cell_id: write-dense-neural-report
+        cell_tag: artifact-neural-report

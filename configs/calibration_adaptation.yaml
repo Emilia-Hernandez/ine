@@ -1,0 +1,31 @@
+version: 1
+selected_model: hist_gradient_boosting_electoral
+random_seed: 27
+
+national_shift:
+  method: carry_forward_previous_same_family_national_change
+  cycle_years: 6
+  evaluation_targets: [2021, 2024]
+  operational_targets:
+    2027: midterm
+  weight: target_identified_records
+  maximum_other_fold_weighted_mae_deterioration: 0.005
+
+adaptive_intervals:
+  alpha: 0.10
+  nominal_coverage: 0.90
+  minimum_acceptable_global_coverage: 0.85
+  minimum_class_calibration_units: 500
+  evaluation_targets: [2021, 2024]
+  candidates:
+    - rolling_conformal_original_center
+    - rolling_conformal_shift_corrected
+    - family_analogue_shift_corrected
+  section_size_edges: [0, 750, 1500, 3000, 1000000000]
+  section_size_labels: [small, medium, large, very_large]
+
+promotion:
+  selected_interval_candidate: family_analogue_shift_corrected
+  require_primary_mae_improvement: true
+  require_all_global_coverages_above_floor: true
+  public_interval_requires_nominal_coverage_all_targets: true

@@ -1,0 +1,28 @@
+version: 1
+selected_model: hist_gradient_boosting_electoral
+random_seed: 27
+
+conformal:
+  alpha: 0.10
+  nominal_coverage: 0.90
+  method: class_conditional_absolute_residual
+  calibration_policy: rolling_out_of_time_predictions_only
+  minimum_stratum_units: 500
+  evaluation_target_years: [2021, 2024]
+  diagnostic_dimensions:
+    - entity_id
+    - geography_confidence_class
+    - section_size_band
+    - predicted_risk_decile
+  section_size_edges: [0, 750, 1500, 3000, 1000000000]
+  section_size_labels: [small, medium, large, very_large]
+
+spatial_validation:
+  target_years: [2018, 2021, 2024]
+  entity_groups: 5
+  grouping_rule: sorted_entity_round_robin
+  training_rule: prior_target_years_excluding_all_entities_in_test_group
+
+readiness_diagnostics:
+  minimum_acceptable_global_coverage: 0.85
+  maximum_overall_spatial_weighted_mae_deterioration: 0.02

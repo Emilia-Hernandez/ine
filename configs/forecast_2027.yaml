@@ -1,0 +1,36 @@
+version: 1
+target_year: 2027
+election_family: midterm
+same_family_feature_year: 2021
+max_source_election_year: 2024
+geography_snapshot_target_year: 2024
+geography_evidence_through_year: 2022
+selected_model: hist_gradient_boosting
+selected_feature_group: territorial_context
+model_config: configs/tabular_challengers.yaml
+feature_config: configs/feature_ablation.yaml
+primary_geography_scope: classes_A_and_B
+fallback_geography_scope: classes_C_and_D
+
+training:
+  labeled_target_years: [2015, 2018, 2021, 2024]
+  target: voted / (voted + did_not_vote)
+  sample_weight: target_identified_records
+  feature_set: territorial_context
+  prediction_bounds: [0.0, 1.0]
+
+national_shift:
+  source_target_year: 2021
+  expected_correction: 0.05214965494331881
+  method: carry_forward_previous_same_family_national_change
+
+uncertainty:
+  calibration_target_year: 2021
+  method: family_analogue_shift_corrected
+  calibration_model: hist_gradient_boosting
+  calibration_feature_group: territorial_context
+  nominal_coverage: 0.90
+  minimum_class_calibration_units: 500
+  lower_confidence_pool: [C, D]
+
+publication_status: experimental_not_for_public_release

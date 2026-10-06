@@ -8,6 +8,12 @@
 4. `03_geography_graph.ipynb`: fuente pública AMGE, parser, aristas elegibles, componentes y clases A/B/C/D por corte temporal.
 5. `04_panel_build_audit.ipynb`: tres estrategias geográficas, cuatro backtests, cobertura, error, procedencia y fuga temporal.
 6. `05_feature_model_evaluation.ipynb`: ECEG, agregados sexo–edad, feature mart A+B, modelos temporales, robustez y decisión.
+7. `06_uncertainty_spatial_validation.ipynb`: intervalos conformales fuera de tiempo, cobertura por subgrupo y validación espacial reteniendo entidades completas.
+8. `07_calibration_adaptation.ipynb`: corrección nacional por ciclo comparable, intervalos de análogo familiar y nuevo gate de preparación.
+9. `09_feature_ablation.ipynb`: comparación controlada de historia, demografía electoral, ECEG y contexto territorial manteniendo fijo el boosting.
+10. `10_tabular_challengers.ipynb`: comparación de cuatro familias de árboles con features, folds, baseline y corrección nacional constantes.
+11. `08_forecast_2027_experimental.ipynb`: actualización final con las features y el modelo seleccionados, proyección sobre el snapshot 2024 y expansión A/B/C/D. El nombre 08 se conserva por procedencia; la canalización lo ejecuta después de 09 y 10.
+12. `11_dense_neural_challenger.ipynb`: red MLP 64–32 con estandarización del objetivo y comparación temporal contra HistGradientBoosting.
 
 Cada notebook detecta la raíz del proyecto, usa entradas persistidas y funciona con **Restart Kernel → Run All**. La ejecución automatizada usa un kernel nuevo por notebook:
 
@@ -40,5 +46,30 @@ uv run python scripts/run_notebooks.py --timeout 1800
 | Métricas de modelos | 05 | `run-feature-model-backtests` | `artifact-model-metrics` | `artifacts/tables/model_backtest_metrics.csv` |
 | Decisión de modelo | 05 | `run-feature-model-backtests` | `artifact-model-decision` | `artifacts/model_decision.json` |
 | Reporte de modelos | 05 | `write-feature-model-report` | `artifact-feature-model-report` | `artifacts/reports/feature_model_evaluation.html` |
+| Intervalos conformales | 06 | `build-conformal-intervals` | `artifact-conformal-intervals` | `artifacts/tables/conformal_backtest_intervals.parquet` |
+| Cobertura conformal | 06 | `build-conformal-intervals` | `artifact-conformal-coverage` | `artifacts/tables/conformal_coverage_metrics.csv` |
+| Robustez espacial | 06 | `run-spatial-holdout` | `artifact-spatial-metrics` | `artifacts/tables/spatial_robustness_metrics.csv` |
+| Decisión de incertidumbre | 06 | `write-uncertainty-decision` | `artifact-uncertainty-decision` | `artifacts/uncertainty_decision.json` |
+| Reporte de incertidumbre | 06 | `write-uncertainty-report` | `artifact-uncertainty-report` | `artifacts/reports/uncertainty_spatial_validation.html` |
+| Corrección nacional | 07 | `estimate-national-shift` | `artifact-shift-estimates` | `artifacts/tables/national_shift_estimates.csv` |
+| Intervalos adaptativos | 07 | `compare-adaptive-intervals` | `artifact-adaptive-coverage` | `artifacts/tables/adaptive_interval_coverage.csv` |
+| Decisión de adaptación | 07 | `write-adaptation-decision` | `artifact-adaptation-decision` | `artifacts/calibration_adaptation_decision.json` |
+| Reporte de adaptación | 07 | `write-adaptation-report` | `artifact-adaptation-report` | `artifacts/reports/calibration_adaptation.html` |
+| Feature mart 2027 | 08 | `build-forecast-2027-features` | `artifact-forecast-features` | `artifacts/tables/forecast_2027_feature_mart.parquet` |
+| Predicciones seccionales 2027 | 08 | `expand-forecast-2027-sections` | `artifact-forecast-sections` | `artifacts/tables/forecast_2027_section_predictions.parquet` |
+| Decisión 2027 | 08 | `write-forecast-2027-decision` | `artifact-forecast-decision` | `artifacts/forecast_2027_decision.json` |
+| Reporte 2027 | 08 | `write-forecast-2027-report` | `artifact-forecast-report` | `artifacts/reports/forecast_2027_experimental.html` |
+| Mart de ablación | 09 | `build-feature-ablation-mart` | `artifact-feature-ablation-mart` | `artifacts/tables/feature_ablation_mart.parquet` |
+| Métricas de features | 09 | `run-feature-ablation` | `artifact-feature-ablation-metrics` | `artifacts/tables/feature_ablation_metrics.csv` |
+| Decisión de features | 09 | `write-feature-ablation-decision` | `artifact-feature-ablation-decision` | `artifacts/feature_ablation_decision.json` |
+| Reporte de ablación | 09 | `write-feature-ablation-report` | `artifact-feature-ablation-report` | `artifacts/reports/feature_ablation.html` |
+| Predicciones de challengers | 10 | `run-tabular-challengers` | `artifact-challenger-predictions` | `artifacts/tables/tabular_challenger_predictions.parquet` |
+| Métricas de challengers | 10 | `run-tabular-challengers` | `artifact-challenger-metrics` | `artifacts/tables/tabular_challenger_metrics.csv` |
+| Decisión de challenger | 10 | `write-tabular-challenger-decision` | `artifact-challenger-decision` | `artifacts/tabular_challenger_decision.json` |
+| Reporte de challengers | 10 | `write-tabular-challenger-report` | `artifact-challenger-report` | `artifacts/reports/tabular_challengers.html` |
+| Predicciones de red densa | 11 | `run-dense-neural-challenger` | `artifact-neural-predictions` | `artifacts/tables/dense_neural_predictions.parquet` |
+| Métricas de red densa | 11 | `run-dense-neural-challenger` | `artifact-neural-metrics` | `artifacts/tables/dense_neural_metrics.csv` |
+| Decisión de red densa | 11 | `write-dense-neural-decision` | `artifact-neural-decision` | `artifacts/dense_neural_decision.json` |
+| Reporte de red densa | 11 | `write-dense-neural-report` | `artifact-neural-report` | `artifacts/reports/dense_neural_challenger.html` |
 
 Las copias ejecutadas y HTML conservan código visible. Un fallo deja evidencia parcial y no se registra como éxito.

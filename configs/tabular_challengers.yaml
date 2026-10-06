@@ -1,0 +1,62 @@
+version: 1
+objective: compare_tabular_model_families_with_features_and_evaluation_frozen
+feature_group: territorial_context
+feature_config: configs/feature_ablation.yaml
+random_seed: 27
+evaluation_targets: [2018, 2021, 2024]
+primary_target_year: 2021
+reference_model: hist_gradient_boosting
+baseline_model: lag_same_type_stable_plus_official_lineage
+residual_shrinkage: 0.25
+maximum_other_fold_weighted_mae_deterioration: 0.005
+
+# Una sola especificación moderada por familia. No se hace búsqueda de
+# hiperparámetros con sólo tres folds electorales.
+models:
+  hist_gradient_boosting:
+    family: hist_gradient_boosting
+    label: HistGradientBoostingRegressor
+    learning_rate: 0.05
+    max_iter: 250
+    max_leaf_nodes: 15
+    min_samples_leaf: 40
+    l2_regularization: 1.0
+
+  extra_trees:
+    family: extra_trees
+    label: ExtraTreesRegressor
+    n_estimators: 240
+    max_depth: 18
+    min_samples_leaf: 8
+    max_features: 0.8
+    n_jobs: 4
+
+  xgboost:
+    family: xgboost
+    label: XGBRegressor
+    objective: reg:squarederror
+    n_estimators: 300
+    learning_rate: 0.04
+    max_depth: 6
+    min_child_weight: 20.0
+    subsample: 0.85
+    colsample_bytree: 0.9
+    reg_lambda: 5.0
+    tree_method: hist
+    n_jobs: 4
+
+  lightgbm:
+    family: lightgbm
+    label: LGBMRegressor
+    objective: regression_l1
+    n_estimators: 300
+    learning_rate: 0.04
+    num_leaves: 31
+    max_depth: -1
+    min_child_samples: 40
+    subsample: 0.85
+    subsample_freq: 1
+    colsample_bytree: 0.9
+    reg_lambda: 5.0
+    n_jobs: 4
+    verbosity: -1

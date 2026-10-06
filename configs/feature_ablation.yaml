@@ -1,0 +1,92 @@
+version: 1
+model_family: hist_gradient_boosting_residual_correction
+base_model_spec: hist_gradient_boosting_electoral
+random_seed: 27
+primary_target_year: 2021
+strict_targets: [2018, 2021, 2024]
+eceg_allowed_targets: [2024]
+current_feature_group: electoral_demographics
+maximum_other_fold_weighted_mae_deterioration: 0.005
+minimum_eceg_2024_improvement_to_promote: 0.001
+
+feature_groups:
+  historical_core:
+    extends: null
+    numeric:
+      - participation_lag1
+      - participation_lag2
+      - participation_same_type
+      - participation_historical_mean
+      - participation_historical_std
+      - participation_trend_per_year
+      - participation_change_lag1_lag2
+      - participation_same_type_minus_lag1
+      - log_nominal_list_lag1
+      - nominal_list_growth_lag1_lag2
+      - identified_coverage_lag1
+      - lineage_class_b
+    categorical: [entity_id, election_family]
+    availability: strict_all_targets
+
+  electoral_demographics:
+    extends: historical_core
+    numeric:
+      - female_nominal_share_lag1
+      - age_18_29_nominal_share_lag1
+      - age_30_44_nominal_share_lag1
+      - age_45_64_nominal_share_lag1
+      - age_65_plus_nominal_share_lag1
+      - female_turnout_lag1
+      - male_turnout_lag1
+      - female_minus_male_turnout_lag1
+      - age_18_29_turnout_lag1
+      - age_30_44_turnout_lag1
+      - age_45_64_turnout_lag1
+      - age_65_plus_turnout_lag1
+    categorical: []
+    availability: strict_all_targets
+
+  territorial_context:
+    extends: historical_core
+    numeric:
+      - entity_same_type_mean
+      - same_type_minus_entity_mean
+      - entity_same_type_std
+      - national_same_type_mean
+      - same_type_minus_national_mean
+      - entity_lag1_mean
+      - lag1_minus_entity_mean
+      - entity_lag1_std
+      - national_lag1_mean
+      - lag1_minus_national_mean
+    categorical: [geography_unit_type]
+    availability: strict_all_targets
+
+  demographics_context:
+    extends: electoral_demographics
+    include_group: territorial_context
+    numeric: []
+    categorical: []
+    availability: strict_all_targets
+
+  demographics_eceg:
+    extends: electoral_demographics
+    numeric:
+      - eceg_female_share
+      - eceg_adult_share
+      - eceg_older_share
+      - eceg_illiteracy_share_15_plus
+      - eceg_economic_activity_share_12_plus
+      - eceg_disability_share
+      - eceg_indigenous_language_share_3_plus
+      - eceg_internet_share_dwellings
+      - eceg_average_schooling
+    categorical: []
+    availability: eceg_2020_available_from_2021_08_18
+
+  full_enriched:
+    extends: demographics_context
+    include_group: demographics_eceg
+    numeric: []
+    categorical: []
+    availability: eceg_2020_available_from_2021_08_18

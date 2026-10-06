@@ -46,6 +46,6 @@ Las variables de sexo y edad aportan menos al ajuste residual agregado. La impor
 - 2018 tiene un único target previo para entrenamiento.
 - El fold 2024 conserva evidencia territorial parcial porque AMGE termina en 2022.
 - El shift nacional entre elecciones continúa dominando parte del error.
-- No se han construido todavía intervalos predictivos ni un pronóstico 2027.
+- La fase posterior construyó intervalos predictivos, pero éstos no alcanzan la cobertura requerida en 2021; no existe todavía un pronóstico 2027. Véase `docs/UNCERTAINTY_SPATIAL_RESULTS.md`.
 
 Ejecución reproducible de referencia: `artifacts/runs/20261006T032315Z-feature-model-evaluation` (`success`). La decisión máquina-legible está en `artifacts/model_decision.json`; métricas y predicciones están en `artifacts/tables/model_backtest_metrics.csv` y `artifacts/tables/model_backtest_predictions.parquet`.

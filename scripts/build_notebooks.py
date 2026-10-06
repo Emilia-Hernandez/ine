@@ -1695,6 +1695,1226 @@ assert all(final_checks.values())""",
     return notebook
 
 
+def notebook_06() -> nbf.NotebookNode:
+    cells = [
+        md(
+            """# 06 · Incertidumbre conformal y robustez espacial
+
+**Pregunta.** ¿El candidato aprobado produce intervalos temporalmente válidos y conserva su desempeño cuando se retienen entidades completas?
+
+**Entradas.** Predicciones fuera de tiempo, feature mart A+B, decisión de modelo y `configs/uncertainty.yaml`.
+
+**Método.** Intervalos conformales de residuo absoluto con calibración móvil estrictamente anterior al target y cuantiles por clase A/B cuando hay muestra suficiente. Como prueba espacial separada, cinco grupos deterministas retienen entidades completas tanto del entrenamiento histórico como de la evaluación.
+
+**Criterio de honestidad.** El resultado 2021 sólo puede usar residuos 2018; el resultado 2024 puede usar 2018–2021. No se recalibra con el target que se evalúa. La prueba espacial es diagnóstico de transferencia, no el esquema de entrenamiento productivo.
+
+**Salidas.** Intervalos, cobertura global y por subgrupo, predicciones espaciales, métricas de transferencia, decisión máquina-legible y reporte HTML.""",
+            "uncertainty-intro",
+            ["scope"],
+        ),
+        md(
+            """## Entorno, configuración y entradas
+
+Se comprueban las salidas congeladas del notebook 05 y se muestra el contrato antes de calcular resultados.""",
+            "uncertainty-setup-question",
+        ),
+        code(
+            """from pathlib import Path
+import json
+import time
+
+import pandas as pd
+import yaml
+from IPython.display import Markdown, display
+
+from radar27.modeling.uncertainty import (
+    build_conformal_intervals,
+    run_spatial_entity_holdout,
+    write_uncertainty_decision,
+)
+
+
+def find_project_root(start: Path) -> Path:
+    for candidate in [start, *start.parents]:
+        if (candidate / "pyproject.toml").exists() and (candidate / "configs/uncertainty.yaml").exists():
+            return candidate
+    raise FileNotFoundError("No se encontró la raíz del proyecto")
+
+
+PROJECT_ROOT = find_project_root(Path.cwd().resolve())
+RUN_STARTED = time.perf_counter()
+with (PROJECT_ROOT / "configs/uncertainty.yaml").open(encoding="utf-8") as stream:
+    uncertainty_config = yaml.safe_load(stream)
+required_inputs = [
+    PROJECT_ROOT / "artifacts/model_decision.json",
+    PROJECT_ROOT / "artifacts/tables/feature_mart_ab.parquet",
+    PROJECT_ROOT / "artifacts/tables/model_backtest_predictions.parquet",
+]
+input_checks = {path.relative_to(PROJECT_ROOT).as_posix(): path.exists() for path in required_inputs}
+display(pd.Series(input_checks, name="existe").to_frame())
+display(pd.Series(uncertainty_config["conformal"], name="valor").to_frame())
+assert all(input_checks.values())""",
+            "uncertainty-setup",
+            ["setup", "config"],
+        ),
+        md(
+            """## Intervalos conformales móviles
+
+El radio es el cuantil conformal finito de los errores absolutos fuera de tiempo. Se estratifica por clase territorial sólo si el estrato de calibración supera el mínimo configurado; de otro modo se usa el cuantil global y se registra el respaldo.""",
+            "conformal-question",
+        ),
+        code(
+            """intervals, coverage, calibration = build_conformal_intervals(PROJECT_ROOT)
+overall_coverage = coverage[coverage.group_dimension.eq("overall")].copy()
+display(calibration)
+display(overall_coverage)""",
+            "build-conformal-intervals",
+            ["artifact-conformal-intervals", "artifact-conformal-coverage"],
+        ),
+        code(
+            """conformal_checks = {
+    "calibration_strictly_prior": bool(
+        (intervals.max_calibration_target_year < intervals.target_year).all()
+    ),
+    "bounds_are_probabilities": bool(
+        intervals.lower.dropna().between(0, 1).all()
+        and intervals.upper.dropna().between(0, 1).all()
+    ),
+    "ordered_intervals": bool((intervals.lower <= intervals.upper).all()),
+    "required_diagnostics_present": {
+        "overall", "entity_id", "geography_confidence_class",
+        "section_size_band", "predicted_risk_decile",
+    } <= set(coverage.group_dimension),
+}
+display(pd.Series(conformal_checks, name="aprobado").to_frame())
+assert all(conformal_checks.values())""",
+            "audit-conformal-contract",
+            ["leakage", "validation"],
+        ),
+        code(
+            """coverage_2021 = overall_coverage.set_index("target_year").loc[2021]
+coverage_2024 = overall_coverage.set_index("target_year").loc[2024]
+display(Markdown(
+    f"**Resultado temporal.** Con nominal de 90%, la cobertura observada es "
+    f"`{100*coverage_2021.empirical_coverage:.2f}%` en 2021 y "
+    f"`{100*coverage_2024.empirical_coverage:.2f}%` en 2024. "
+    "La diferencia evidencia cambio entre elecciones; no se corrige usando información del target."
+))""",
+            "conformal-interpretation",
+            ["interpretation"],
+        ),
+        md(
+            """## Validación espacial con entidades retenidas
+
+Las 32 entidades se reparten en cinco grupos por orden de ID. Para cada año y grupo, el modelo se reentrena sólo con años anteriores y sin ninguna fila histórica de las entidades evaluadas. Se compara contra el backtest temporal ordinario sobre exactamente las mismas unidades.""",
+            "spatial-question",
+        ),
+        code(
+            """spatial_predictions, spatial_metrics = run_spatial_entity_holdout(PROJECT_ROOT)
+overall_spatial = spatial_metrics[spatial_metrics.scope.eq("overall")].copy()
+display(overall_spatial)
+display(
+    spatial_metrics[spatial_metrics.scope.eq("entity_id")]
+    .sort_values(["target_year", "weighted_mae_deterioration"], ascending=[True, False])
+    .groupby("target_year", as_index=False)
+    .head(5)
+)""",
+            "run-spatial-holdout",
+            ["artifact-spatial-predictions", "artifact-spatial-metrics"],
+        ),
+        code(
+            """spatial_checks = {
+    "training_years_strictly_prior": bool(
+        (spatial_predictions.max_training_target_year < spatial_predictions.target_year).all()
+    ),
+    "each_entity_is_held_out": bool(spatial_predictions.apply(
+        lambda row: str(row.entity_id) in str(row.held_out_entities).split("|"), axis=1
+    ).all()),
+    "one_prediction_per_unit": not spatial_predictions.duplicated(
+        ["target_year", "evaluation_unit_id"]
+    ).any(),
+    "predictions_are_probabilities": bool(
+        spatial_predictions.spatial_holdout_prediction.between(0, 1).all()
+    ),
+}
+display(pd.Series(spatial_checks, name="aprobado").to_frame())
+assert all(spatial_checks.values())""",
+            "audit-spatial-contract",
+            ["leakage", "validation"],
+        ),
+        md(
+            """## Decisión y reporte
+
+Los umbrales configurados son diagnósticos de preparación, no una forma de seleccionar de nuevo el modelo. Una cobertura temporal insuficiente impide declarar listos los intervalos 2027 aunque el estrés espacial sea favorable.""",
+            "uncertainty-decision-question",
+        ),
+        code(
+            """uncertainty_decision = write_uncertainty_decision(
+    PROJECT_ROOT, coverage, spatial_metrics
+)
+display(pd.Series(uncertainty_decision).to_frame("valor"))""",
+            "write-uncertainty-decision",
+            ["artifact-uncertainty-decision", "gate"],
+        ),
+        code(
+            """report_path = PROJECT_ROOT / "artifacts/reports/uncertainty_spatial_validation.html"
+report_path.parent.mkdir(parents=True, exist_ok=True)
+report_path.write_text("\\n".join([
+    "<h1>RADAR 27 · Incertidumbre y robustez espacial</h1>",
+    "<p>Generado por notebooks/06_uncertainty_spatial_validation.ipynb.</p>",
+    "<h2>Calibración</h2>", calibration.to_html(index=False),
+    "<h2>Cobertura global</h2>", overall_coverage.to_html(index=False),
+    "<h2>Cobertura por subgrupo</h2>", coverage.to_html(index=False),
+    "<h2>Robustez espacial global</h2>", overall_spatial.to_html(index=False),
+    "<h2>Robustez espacial detallada</h2>", spatial_metrics.to_html(index=False),
+    "<h2>Decisión</h2><pre>" + json.dumps(
+        uncertainty_decision, ensure_ascii=False, indent=2
+    ) + "</pre>",
+]), encoding="utf-8")
+
+required_outputs = [
+    PROJECT_ROOT / "artifacts/tables/conformal_backtest_intervals.parquet",
+    PROJECT_ROOT / "artifacts/tables/conformal_coverage_metrics.csv",
+    PROJECT_ROOT / "artifacts/tables/conformal_calibration_summary.csv",
+    PROJECT_ROOT / "artifacts/tables/spatial_holdout_predictions.parquet",
+    PROJECT_ROOT / "artifacts/tables/spatial_robustness_metrics.csv",
+    PROJECT_ROOT / "artifacts/uncertainty_decision.json",
+    report_path,
+]
+final_checks = {
+    "all_outputs_exist": all(path.exists() for path in required_outputs),
+    **conformal_checks,
+    **spatial_checks,
+}
+display(pd.Series(final_checks, name="aprobado").to_frame())
+assert all(final_checks.values())""",
+            "write-uncertainty-report",
+            ["artifact-uncertainty-report", "summary"],
+        ),
+        code(
+            """readiness = "LISTO" if uncertainty_decision["ready_for_first_2027_projection"] else "NO LISTO"
+display(Markdown(
+    f"**Cierre: {readiness} para proyectar 2027 con intervalos.** "
+    f"La validación espacial pasa: `{uncertainty_decision['spatial_deterioration_diagnostic_passes']}`; "
+    f"la cobertura conformal pasa: `{uncertainty_decision['global_coverage_diagnostic_passes']}`. "
+    f"Tiempo total: `{time.perf_counter()-RUN_STARTED:.1f}` s."
+))""",
+            "uncertainty-final-interpretation",
+            ["summary"],
+        ),
+    ]
+    notebook = nbf.v4.new_notebook(cells=cells)
+    notebook["metadata"] = {
+        "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
+        "language_info": {"name": "python", "version": "3.12"},
+    }
+    return notebook
+
+
+def notebook_07() -> nbf.NotebookNode:
+    cells = [
+        md(
+            """# 07 · Adaptación al cambio nacional y calibración por familia electoral
+
+**Pregunta.** ¿Puede corregirse el fallo de cobertura 2021 usando únicamente señales disponibles antes de cada elección, sin perder robustez en 2024?
+
+**Entradas.** Feature mart A+B, predicciones del candidato aprobado, intervalos del notebook 06 y `configs/calibration_adaptation.yaml`.
+
+**Método.** La predicción suma el cambio nacional observado en el ciclo anterior de la misma familia, separado por seis años. Se comparan el conformal móvil original, el conformal móvil con centro corregido y un intervalo de análogo familiar calibrado con la última elección de la misma familia. Cuando el candidato no tiene predicción fuera de tiempo para el análogo 2015, se usa explícitamente el baseline de mismo tipo como arranque frío.
+
+**Criterios.** Todas las fuentes deben preceder al target; el MAE 2021 debe mejorar; el deterioro 2024 no puede superar 0.5 pp; la cobertura global debe superar 85% en ambos targets. Alcanzar ese piso habilita experimentación 2027, pero sólo 90% en todos los targets permitiría hablar de intervalos publicables.
+
+**Salidas.** Correcciones nacionales, predicciones corregidas, comparación de intervalos, decisión máquina-legible y reporte HTML.""",
+            "adaptation-intro",
+            ["scope"],
+        ),
+        md(
+            """## Configuración y entradas
+
+Se fija la regla antes de evaluar resultados. No se aprende un factor con 2021 ni 2024: se traslada exactamente el cambio nacional del ciclo comparable anterior.""",
+            "adaptation-setup-question",
+        ),
+        code(
+            """from pathlib import Path
+import json
+import time
+
+import pandas as pd
+import yaml
+from IPython.display import Markdown, display
+
+from radar27.modeling.calibration_adaptation import (
+    build_adaptive_interval_comparison,
+    build_shift_corrected_predictions,
+    estimate_national_shift,
+    write_adaptation_decision,
+)
+
+
+def find_project_root(start: Path) -> Path:
+    for candidate in [start, *start.parents]:
+        if (candidate / "pyproject.toml").exists() and (
+            candidate / "configs/calibration_adaptation.yaml"
+        ).exists():
+            return candidate
+    raise FileNotFoundError("No se encontró la raíz del proyecto")
+
+
+PROJECT_ROOT = find_project_root(Path.cwd().resolve())
+RUN_STARTED = time.perf_counter()
+with (PROJECT_ROOT / "configs/calibration_adaptation.yaml").open(encoding="utf-8") as stream:
+    adaptation_config = yaml.safe_load(stream)
+required_inputs = [
+    PROJECT_ROOT / "artifacts/tables/feature_mart_ab.parquet",
+    PROJECT_ROOT / "artifacts/tables/model_backtest_predictions.parquet",
+    PROJECT_ROOT / "artifacts/tables/conformal_backtest_intervals.parquet",
+    PROJECT_ROOT / "artifacts/uncertainty_decision.json",
+]
+input_checks = {path.relative_to(PROJECT_ROOT).as_posix(): path.exists() for path in required_inputs}
+display(pd.Series(input_checks, name="existe").to_frame())
+display(pd.Series(adaptation_config["national_shift"], name="valor").to_frame())
+assert all(input_checks.values())""",
+            "adaptation-setup",
+            ["setup", "config"],
+        ),
+        md(
+            """## Corrección nacional fuera de tiempo
+
+Para cada target se calcula la diferencia ponderada `actual - rezago de misma familia` seis años antes. La fila 2027 es sólo un parámetro operacional derivado de 2021; no es una predicción.""",
+            "national-shift-question",
+        ),
+        code(
+            """shift_estimates = estimate_national_shift(PROJECT_ROOT)
+shift_predictions, shift_metrics = build_shift_corrected_predictions(
+    PROJECT_ROOT, shift_estimates
+)
+display(shift_estimates)
+display(shift_metrics)""",
+            "estimate-national-shift",
+            ["artifact-shift-estimates", "artifact-shift-predictions", "artifact-shift-metrics"],
+        ),
+        code(
+            """shift_checks = {
+    "all_sources_strictly_prior": bool(shift_estimates.source_strictly_prior.all()),
+    "evaluated_families_match": bool(
+        shift_estimates.loc[
+            shift_estimates.target_year.isin([2021, 2024, 2027]), "family_match"
+        ].all()
+    ),
+    "probability_bounds": bool(
+        shift_predictions.prediction_shift_corrected.dropna().between(0, 1).all()
+    ),
+    "primary_mae_improves": bool(
+        shift_metrics.set_index("target_year").loc[2021, "weighted_mae_change"] < 0
+    ),
+    "secondary_deterioration_within_05pp": bool(
+        shift_metrics.set_index("target_year").loc[2024, "weighted_mae_change"] <= 0.005
+    ),
+}
+display(pd.Series(shift_checks, name="aprobado").to_frame())
+assert all(shift_checks.values())""",
+            "audit-national-shift",
+            ["leakage", "validation"],
+        ),
+        code(
+            """primary = shift_metrics.set_index("target_year").loc[2021]
+display(Markdown(
+    f"**Resultado puntual 2021.** El MAE ponderado cambia de "
+    f"`{100*primary.original_weighted_mae:.2f}` a `{100*primary.corrected_weighted_mae:.2f}` pp "
+    f"y el sesgo de `{100*primary.original_weighted_bias:.2f}` a "
+    f"`{100*primary.corrected_weighted_bias:.2f}` pp."
+))""",
+            "national-shift-interpretation",
+            ["interpretation"],
+        ),
+        md(
+            """## Comparación de intervalos adaptativos
+
+El método de análogo familiar cambia la distribución de calibración, no sólo el centro. Para 2021 usa errores del baseline 2015 porque el candidato aún no tenía historia entrenable; para 2024 usa los errores fuera de tiempo del candidato 2018. Esta adaptación es empírica y no se presenta como garantía conformal bajo intercambiabilidad.""",
+            "adaptive-interval-question",
+        ),
+        code(
+            """adaptive_intervals, adaptive_coverage, adaptive_calibration = (
+    build_adaptive_interval_comparison(PROJECT_ROOT, shift_predictions)
+)
+overall_coverage = adaptive_coverage[
+    adaptive_coverage.group_dimension.eq("overall")
+].copy()
+display(overall_coverage[[
+    "interval_method", "target_year", "empirical_coverage",
+    "identified_weighted_coverage", "mean_interval_width",
+]])
+display(adaptive_calibration)""",
+            "compare-adaptive-intervals",
+            ["artifact-adaptive-intervals", "artifact-adaptive-coverage", "artifact-adaptive-calibration"],
+        ),
+        code(
+            """interval_checks = {
+    "calibration_strictly_prior": bool(
+        (adaptive_intervals.max_calibration_target_year < adaptive_intervals.target_year).all()
+    ),
+    "one_interval_per_method_unit": not adaptive_intervals.duplicated(
+        ["interval_method", "target_year", "evaluation_unit_id"]
+    ).any(),
+    "ordered_bounds": bool((adaptive_intervals.lower <= adaptive_intervals.upper).all()),
+    "bounds_are_probabilities": bool(
+        adaptive_intervals.lower.dropna().between(0, 1).all()
+        and adaptive_intervals.upper.dropna().between(0, 1).all()
+    ),
+}
+display(pd.Series(interval_checks, name="aprobado").to_frame())
+assert all(interval_checks.values())""",
+            "audit-adaptive-intervals",
+            ["leakage", "validation"],
+        ),
+        md(
+            """## Decisión
+
+Se distingue entre habilitar una primera canalización experimental 2027 y afirmar que los intervalos son publicables. El segundo estándar exige cobertura nominal en todos los targets y es deliberadamente más estricto.""",
+            "adaptation-decision-question",
+        ),
+        code(
+            """adaptation_decision = write_adaptation_decision(
+    PROJECT_ROOT, shift_metrics, adaptive_coverage
+)
+display(pd.Series(adaptation_decision).to_frame("valor"))""",
+            "write-adaptation-decision",
+            ["artifact-adaptation-decision", "gate"],
+        ),
+        code(
+            """report_path = PROJECT_ROOT / "artifacts/reports/calibration_adaptation.html"
+report_path.parent.mkdir(parents=True, exist_ok=True)
+report_path.write_text("\\n".join([
+    "<h1>RADAR 27 · Adaptación de calibración</h1>",
+    "<p>Generado por notebooks/07_calibration_adaptation.ipynb.</p>",
+    "<h2>Correcciones nacionales</h2>", shift_estimates.to_html(index=False),
+    "<h2>Métricas puntuales</h2>", shift_metrics.to_html(index=False),
+    "<h2>Comparación de cobertura</h2>", overall_coverage.to_html(index=False),
+    "<h2>Calibración</h2>", adaptive_calibration.to_html(index=False),
+    "<h2>Decisión</h2><pre>" + json.dumps(
+        adaptation_decision, ensure_ascii=False, indent=2
+    ) + "</pre>",
+]), encoding="utf-8")
+
+required_outputs = [
+    PROJECT_ROOT / "artifacts/tables/national_shift_estimates.csv",
+    PROJECT_ROOT / "artifacts/tables/shift_corrected_predictions.parquet",
+    PROJECT_ROOT / "artifacts/tables/shift_correction_metrics.csv",
+    PROJECT_ROOT / "artifacts/tables/adaptive_interval_predictions.parquet",
+    PROJECT_ROOT / "artifacts/tables/adaptive_interval_coverage.csv",
+    PROJECT_ROOT / "artifacts/tables/adaptive_interval_calibration.csv",
+    PROJECT_ROOT / "artifacts/calibration_adaptation_decision.json",
+    report_path,
+]
+final_checks = {
+    "all_outputs_exist": all(path.exists() for path in required_outputs),
+    **shift_checks,
+    **interval_checks,
+}
+display(pd.Series(final_checks, name="aprobado").to_frame())
+assert all(final_checks.values())""",
+            "write-adaptation-report",
+            ["artifact-adaptation-report", "summary"],
+        ),
+        code(
+            """display(Markdown(
+    f"**Cierre.** Experimental 2027: "
+    f"`{adaptation_decision['approved_for_experimental_2027_pipeline']}`. "
+    f"Intervalo publicable: `{adaptation_decision['public_interval_ready']}`. "
+    f"Tiempo total: `{time.perf_counter()-RUN_STARTED:.1f}` s."
+))""",
+            "adaptation-final-interpretation",
+            ["summary"],
+        ),
+    ]
+    notebook = nbf.v4.new_notebook(cells=cells)
+    notebook["metadata"] = {
+        "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
+        "language_info": {"name": "python", "version": "3.12"},
+    }
+    return notebook
+
+
+def notebook_08() -> nbf.NotebookNode:
+    cells = [
+        md(
+            """# 08 · Proyección experimental 2027 actualizada
+
+**Objetivo.** Construir una proyección seccional auditable para 2027 usando sólo información electoral hasta 2024, manteniendo separados el baseline, la corrección aprendida por árboles, el ajuste nacional y la incertidumbre.
+
+**Baseline.** Participación 2021 de la misma sección o componente territorial oficial. Para C/D se usa la jerarquía sección→componente→municipio→entidad→nacional. En los backtests este baseline A+B tuvo MAE ponderado de 9.38 pp en 2021 y 4.42 pp en 2024.
+
+**Modelo seleccionado.** `HistGradientBoostingRegressor` con `territorial_context`, ganador de la comparación controlada contra XGBoost, LightGBM y Extra Trees. Predice el residual sobre el baseline; sólo se aplica 25% de esa corrección. Después se suma, por separado, el desplazamiento nacional de +5.21 pp estimado con el ciclo intermedio 2015→2021.
+
+**Corte.** Elecciones hasta 2024; geografía observada en el snapshot 2024; linajes públicos AMGE disponibles hasta 2022. No existe todavía marco seccional ni resultado 2027.
+
+**Salidas.** Feature mart 2027, predicciones A/B por unidad, expansión a 70,751 secciones del snapshot, intervalos por clase, resumen, registro del modelo y decisión experimental.""",
+            "forecast-2027-intro",
+            ["scope"],
+        ),
+        md(
+            """## Configuración y corte informativo
+
+Se valida que ninguna elección posterior a 2024 entre al entrenamiento o a las variables. El target 2027 no aparece como outcome en ningún artefacto.""",
+            "forecast-setup-question",
+        ),
+        code(
+            """from pathlib import Path
+import json
+import time
+
+import pandas as pd
+import yaml
+from IPython.display import Markdown, display
+
+from radar27.modeling.forecast_2027 import (
+    build_forecast_feature_mart,
+    expand_to_section_forecast,
+    train_and_predict_2027,
+    write_forecast_decision,
+)
+
+
+def find_project_root(start: Path) -> Path:
+    for candidate in [start, *start.parents]:
+        if (candidate / "pyproject.toml").exists() and (
+            candidate / "configs/forecast_2027.yaml"
+        ).exists():
+            return candidate
+    raise FileNotFoundError("No se encontró la raíz del proyecto")
+
+
+PROJECT_ROOT = find_project_root(Path.cwd().resolve())
+RUN_STARTED = time.perf_counter()
+with (PROJECT_ROOT / "configs/forecast_2027.yaml").open(encoding="utf-8") as stream:
+    forecast_config = yaml.safe_load(stream)
+required_inputs = [
+    PROJECT_ROOT / "artifacts/tables/feature_ablation_mart.parquet",
+    PROJECT_ROOT / "artifacts/tables/national_shift_estimates.csv",
+    PROJECT_ROOT / "artifacts/tables/tabular_challenger_predictions.parquet",
+    PROJECT_ROOT / "artifacts/tables/tabular_challenger_metrics.csv",
+    PROJECT_ROOT / "artifacts/tabular_challenger_decision.json",
+]
+input_checks = {path.relative_to(PROJECT_ROOT).as_posix(): path.exists() for path in required_inputs}
+display(pd.Series(input_checks, name="existe").to_frame())
+display(pd.Series(forecast_config, name="valor").to_frame())
+assert all(input_checks.values())""",
+            "forecast-2027-setup",
+            ["setup", "config"],
+        ),
+        md(
+            """## Feature mart operacional enriquecido
+
+Las unidades A son secciones estables; las B son componentes de linaje oficial. Las variables terminan en 2024 y el rezago de misma familia es 2021. Se añaden promedios y diferencias relativas frente a la entidad y al país, calculados sólo con rezagos.""",
+            "forecast-feature-question",
+        ),
+        code(
+            """forecast_features = build_forecast_feature_mart(PROJECT_ROOT)
+feature_checks = {
+    "unit_id_unique": forecast_features.evaluation_unit_id.is_unique,
+    "only_A_B": set(forecast_features.geography_confidence_class) == {"A", "B"},
+    "all_features_before_2027": bool(
+        (forecast_features.max_electoral_feature_year < 2027).all()
+    ),
+    "no_target_outcome": "actual" not in forecast_features,
+    "territorial_context_available": all(
+        column in forecast_features
+        for column in [
+            "entity_same_type_mean", "same_type_minus_entity_mean",
+            "national_same_type_mean", "geography_unit_type",
+        ]
+    ),
+    "context_is_prior": bool(
+        (forecast_features.context_source_max_year < 2027).all()
+    ),
+}
+display(pd.Series(feature_checks, name="aprobado").to_frame())
+display(forecast_features.groupby("geography_confidence_class").agg(
+    units=("evaluation_unit_id", "size"),
+    sections=("target_sections_represented", "sum"),
+))
+assert all(feature_checks.values())""",
+            "build-forecast-2027-features",
+            ["artifact-forecast-features", "leakage"],
+        ),
+        md(
+            """## Entrenamiento del boosting residual
+
+El modelo no predice desde cero cuando existe baseline. Los árboles estiman `participación real − participación de la elección anterior del mismo tipo`; se aplica 25% de esa corrección para limitar sobreajuste. El ajuste nacional permanece en otra columna.""",
+            "forecast-model-question",
+        ),
+        code(
+            """model_units, model_registry = train_and_predict_2027(
+    PROJECT_ROOT, forecast_features
+)
+display(pd.Series({
+    "model_id": model_registry["model_id"],
+    "family": model_registry["model_family"],
+    "feature_group": model_registry["feature_set"],
+    "training_years": model_registry["training_target_years"],
+    "training_units": model_registry["training_units"],
+    "residual_shrinkage": model_registry["residual_shrinkage"],
+    "national_shift_pp": 100 * model_registry["national_shift_correction"],
+}).to_frame("valor"))
+display(pd.Series(model_registry["hyperparameters"]).to_frame("valor"))""",
+            "train-forecast-2027-model",
+            ["artifact-forecast-model-units", "artifact-forecast-model-registry"],
+        ),
+        code(
+            """model_checks = {
+    "training_stops_in_2024": model_registry["maximum_training_target_year"] == 2024,
+    "selected_model_id": model_registry["model_id"] == "hist_gradient_boosting",
+    "selected_feature_group": model_registry["feature_set"] == "territorial_context",
+    "frozen_shrinkage": model_registry["residual_shrinkage"] == 0.25,
+    "predictions_are_probabilities": bool(
+        model_units.experimental_prediction.between(0, 1).all()
+    ),
+}
+display(pd.Series(model_checks, name="aprobado").to_frame())
+assert all(model_checks.values())""",
+            "audit-forecast-2027-model",
+            ["validation"],
+        ),
+        md(
+            """## Cobertura territorial e incertidumbre
+
+El modelo se aplica a A/B. Sus radios se recalibran con errores fuera de tiempo 2021 del modelo territorial. Las clases C/D reciben el baseline jerárquico más la corrección nacional y radios de errores C/D de 2021. La expansión usa el snapshot 2024 y no afirma conocer cambios territoriales futuros.""",
+            "forecast-expansion-question",
+        ),
+        code(
+            """section_forecast, forecast_summary = expand_to_section_forecast(
+    PROJECT_ROOT, model_units
+)
+display(forecast_summary[
+    forecast_summary.group_dimension.isin([
+        "overall", "geography_confidence_class", "prediction_strategy"
+    ])
+])
+display(pd.read_csv(PROJECT_ROOT / "artifacts/tables/forecast_2027_interval_calibration.csv"))""",
+            "expand-forecast-2027-sections",
+            ["artifact-forecast-sections", "artifact-forecast-summary", "artifact-forecast-calibration"],
+        ),
+        code(
+            """section_checks = {
+    "snapshot_sections_unique": section_forecast.section_key_observed.is_unique,
+    "snapshot_section_count": len(section_forecast) == 70_751,
+    "all_classes_present": set(section_forecast.geography_confidence_class) == {"A", "B", "C", "D"},
+    "all_sections_predicted": bool(section_forecast.experimental_prediction.notna().all()),
+    "intervals_ordered": bool(
+        (section_forecast.lower <= section_forecast.experimental_prediction).all()
+        and (section_forecast.experimental_prediction <= section_forecast.upper).all()
+    ),
+    "snapshot_not_future_geography": section_forecast.forecast_geography_status.eq(
+        "2024_snapshot_not_2027_certified"
+    ).all(),
+}
+display(pd.Series(section_checks, name="aprobado").to_frame())
+assert all(section_checks.values())""",
+            "audit-forecast-2027-sections",
+            ["validation", "geography"],
+        ),
+        md(
+            """## Comparación histórica y decisión
+
+No existe MAE 2027 porque aún no hay resultado real. La referencia disponible son backtests históricos contra el baseline de última elección de la misma familia.""",
+            "forecast-decision-question",
+        ),
+        code(
+            """forecast_decision = write_forecast_decision(
+    PROJECT_ROOT, model_units, section_forecast, forecast_summary, model_registry
+)
+historical_comparison = pd.DataFrame(forecast_decision["historical_mae_comparison"])
+historical_comparison["baseline_mae_pp"] = 100 * historical_comparison["baseline_weighted_mae"]
+historical_comparison["corrected_model_mae_pp"] = 100 * historical_comparison[
+    "corrected_boosting_weighted_mae"
+]
+historical_comparison["change_pp"] = 100 * historical_comparison["mae_change_vs_baseline"]
+display(historical_comparison[[
+    "target_year", "baseline_model", "baseline_mae_pp",
+    "corrected_model_mae_pp", "change_pp",
+]])
+display(pd.Series(forecast_decision).to_frame("valor"))""",
+            "write-forecast-2027-decision",
+            ["artifact-forecast-decision", "gate"],
+        ),
+        code(
+            """report_path = PROJECT_ROOT / "artifacts/reports/forecast_2027_experimental.html"
+report_path.parent.mkdir(parents=True, exist_ok=True)
+report_path.write_text("\\n".join([
+    "<h1>RADAR 27 · Proyección experimental 2027</h1>",
+    "<p>Generado por notebooks/08_forecast_2027_experimental.ipynb.</p>",
+    "<h2>Modelo</h2><pre>" + json.dumps(model_registry, ensure_ascii=False, indent=2) + "</pre>",
+    "<h2>Comparación histórica</h2>", historical_comparison.to_html(index=False),
+    "<h2>Resumen de proyección</h2>", forecast_summary.to_html(index=False),
+    "<h2>Decisión</h2><pre>" + json.dumps(
+        forecast_decision, ensure_ascii=False, indent=2
+    ) + "</pre>",
+]), encoding="utf-8")
+
+required_outputs = [
+    PROJECT_ROOT / "artifacts/tables/forecast_2027_feature_mart.parquet",
+    PROJECT_ROOT / "artifacts/tables/forecast_2027_model_units.parquet",
+    PROJECT_ROOT / "artifacts/tables/forecast_2027_section_predictions.parquet",
+    PROJECT_ROOT / "artifacts/tables/forecast_2027_interval_calibration.csv",
+    PROJECT_ROOT / "artifacts/tables/forecast_2027_summary.csv",
+    PROJECT_ROOT / "artifacts/forecast_2027_model_registry.json",
+    PROJECT_ROOT / "artifacts/forecast_2027_decision.json",
+    report_path,
+]
+final_checks = {
+    "all_outputs_exist": all(path.exists() for path in required_outputs),
+    **feature_checks,
+    **model_checks,
+    **section_checks,
+}
+display(pd.Series(final_checks, name="aprobado").to_frame())
+assert all(final_checks.values())""",
+            "write-forecast-2027-report",
+            ["artifact-forecast-report", "summary"],
+        ),
+        code(
+            """overall = forecast_summary[
+    forecast_summary.group_dimension.eq("overall")
+].iloc[0]
+display(Markdown(
+    f"**Cierre experimental.** Se proyectaron `{len(section_forecast):,}` secciones del snapshot 2024. "
+    f"Promedio ponderado por lista nominal actual: "
+    f"`{100*overall.weighted_experimental_prediction:.2f}%`. "
+    "No es resultado oficial, estimación de votos ni garantía pública. "
+    f"Tiempo total: `{time.perf_counter()-RUN_STARTED:.1f}` s."
+))""",
+            "forecast-2027-final-interpretation",
+            ["summary"],
+        ),
+    ]
+    notebook = nbf.v4.new_notebook(cells=cells)
+    notebook["metadata"] = {
+        "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
+        "language_info": {"name": "python", "version": "3.12"},
+    }
+    return notebook
+
+
+def notebook_09() -> nbf.NotebookNode:
+    cells = [
+        md(
+            """# 09 · Ablación de variables sociodemográficas y territoriales
+
+**Objetivo.** Determinar qué grupos de variables agregan señal real manteniendo fijo el algoritmo. Se evita confundir una mejora por features con una mejora por cambiar simultáneamente de modelo.
+
+**Baseline de MAE.** Última participación de la misma familia electoral para sección estable o componente oficial A+B (`lag_same_type_stable_plus_official_lineage`).
+
+**Modelo constante.** `HistGradientBoostingRegressor` residual, con los mismos hiperparámetros, contracción 0.25 y corrección nacional de los notebooks anteriores.
+
+**Grupos.** Historia mínima; demografía electoral por sexo/edad; contexto relativo a entidad/nación; combinación demografía+contexto; ECEG; combinación completa.
+
+**Regla temporal.** Los grupos sin ECEG se prueban en 2018, 2021 y 2024. ECEG 2020 sólo se prueba en el origen 2024 porque su publicación oficial es posterior a la elección 2021.
+
+**Salidas.** Mart enriquecido, predicciones, métricas, registro de variables, decisión de promoción y reporte HTML.""",
+            "feature-ablation-intro",
+            ["scope"],
+        ),
+        md(
+            """## Configuración y entradas
+
+El algoritmo y sus hiperparámetros permanecen congelados. La única dimensión experimental es el conjunto de variables.""",
+            "feature-ablation-setup-question",
+        ),
+        code(
+            """from pathlib import Path
+import json
+import time
+
+import pandas as pd
+import yaml
+from IPython.display import Markdown, display
+
+from radar27.modeling.feature_enrichment import (
+    build_enriched_feature_mart,
+    run_feature_ablation,
+    write_feature_ablation_decision,
+)
+
+
+def find_project_root(start: Path) -> Path:
+    for candidate in [start, *start.parents]:
+        if (candidate / "pyproject.toml").exists() and (
+            candidate / "configs/feature_ablation.yaml"
+        ).exists():
+            return candidate
+    raise FileNotFoundError("No se encontró la raíz del proyecto")
+
+
+PROJECT_ROOT = find_project_root(Path.cwd().resolve())
+RUN_STARTED = time.perf_counter()
+with (PROJECT_ROOT / "configs/feature_ablation.yaml").open(encoding="utf-8") as stream:
+    ablation_config = yaml.safe_load(stream)
+required_inputs = [
+    PROJECT_ROOT / "artifacts/tables/feature_mart_ab.parquet",
+    PROJECT_ROOT / "artifacts/tables/eceg_2020_section_features.parquet",
+    PROJECT_ROOT / "artifacts/tables/national_shift_estimates.csv",
+    PROJECT_ROOT / "artifacts/tables/backtest_metrics.csv",
+]
+input_checks = {path.relative_to(PROJECT_ROOT).as_posix(): path.exists() for path in required_inputs}
+display(pd.Series(input_checks, name="existe").to_frame())
+display(pd.DataFrame(ablation_config["feature_groups"]).T)
+assert all(input_checks.values())""",
+            "feature-ablation-setup",
+            ["setup", "config"],
+        ),
+        md(
+            """## Contexto territorial previo al target
+
+Se calculan promedios y dispersiones de la participación rezagada por entidad y nación, así como la diferencia de cada unidad frente a esos referentes. Sólo se usan columnas conocidas antes del target.""",
+            "feature-context-question",
+        ),
+        code(
+            """ablation_mart = build_enriched_feature_mart(PROJECT_ROOT)
+context_checks = {
+    "unit_target_unique": not ablation_mart.duplicated(
+        ["target_year", "evaluation_unit_id"]
+    ).any(),
+    "context_strictly_prior": bool(
+        (ablation_mart.context_source_max_year < ablation_mart.target_year).all()
+    ),
+    "geography_type_available": bool(ablation_mart.geography_unit_type.notna().all()),
+}
+display(pd.Series(context_checks, name="aprobado").to_frame())
+display(ablation_mart[[
+    "target_year", "evaluation_unit_id", "entity_same_type_mean",
+    "same_type_minus_entity_mean", "national_same_type_mean",
+    "geography_unit_type",
+]].head())
+assert all(context_checks.values())""",
+            "build-feature-ablation-mart",
+            ["artifact-feature-ablation-mart", "leakage"],
+        ),
+        md(
+            """## Backtests de ablación
+
+Cada fila cambia únicamente el conjunto de variables. Se reporta el MAE ponderado después de aplicar la misma corrección nacional usada por la proyección experimental.""",
+            "feature-ablation-question",
+        ),
+        code(
+            """ablation_predictions, ablation_metrics, ablation_registry = run_feature_ablation(
+    PROJECT_ROOT, ablation_mart
+)
+display(ablation_metrics[[
+    "target_year", "feature_group", "availability",
+    "baseline_weighted_mae", "identified_weighted_mae",
+    "mae_change_vs_baseline", "weighted_bias",
+]])""",
+            "run-feature-ablation",
+            ["artifact-feature-ablation-predictions", "artifact-feature-ablation-metrics", "artifact-feature-ablation-registry"],
+        ),
+        code(
+            """temporal_checks = {
+    "eceg_only_2024": set(
+        ablation_metrics.loc[
+            ablation_metrics.availability.str.startswith("eceg_"), "target_year"
+        ]
+    ) == {2024},
+    "strict_groups_all_folds": all(
+        set(group.target_year) == {2018, 2021, 2024}
+        for _, group in ablation_metrics[
+            ablation_metrics.availability.eq("strict_all_targets")
+        ].groupby("feature_group")
+    ),
+    "training_years_prior": all(
+        all(int(year) < int(row.target_year) for year in str(row.training_target_years).split("|"))
+        for row in ablation_registry.itertuples(index=False)
+    ),
+}
+display(pd.Series(temporal_checks, name="aprobado").to_frame())
+assert all(temporal_checks.values())""",
+            "audit-feature-ablation-time",
+            ["leakage", "validation"],
+        ),
+        md(
+            """## Decisión
+
+La promoción estricta exige mejorar 2021 y no deteriorar los otros folds más de 0.5 pp frente al conjunto actual. ECEG exige al menos 0.1 pp de mejora en 2024 para justificar complejidad y evidencia de un solo fold.""",
+            "feature-ablation-decision-question",
+        ),
+        code(
+            """ablation_decision = write_feature_ablation_decision(
+    PROJECT_ROOT, ablation_metrics
+)
+display(pd.Series(ablation_decision).to_frame("valor"))""",
+            "write-feature-ablation-decision",
+            ["artifact-feature-ablation-decision", "gate"],
+        ),
+        code(
+            """strict_pivot = ablation_metrics[
+    ablation_metrics.availability.eq("strict_all_targets")
+].pivot(index="feature_group", columns="target_year", values="identified_weighted_mae")
+strict_pivot = 100 * strict_pivot
+display(strict_pivot.rename(columns=lambda year: f"MAE_{year}_pp"))
+
+eceg_2024 = ablation_metrics[
+    ablation_metrics.target_year.eq(2024)
+].sort_values("identified_weighted_mae")
+display(eceg_2024[["feature_group", "availability", "identified_weighted_mae"]])""",
+            "interpret-feature-ablation",
+            ["interpretation"],
+        ),
+        code(
+            """report_path = PROJECT_ROOT / "artifacts/reports/feature_ablation.html"
+report_path.parent.mkdir(parents=True, exist_ok=True)
+report_path.write_text("\\n".join([
+    "<h1>RADAR 27 · Ablación de variables</h1>",
+    "<p>Generado por notebooks/09_feature_ablation.ipynb.</p>",
+    "<h2>Métricas</h2>", ablation_metrics.to_html(index=False),
+    "<h2>Registro</h2>", ablation_registry.to_html(index=False),
+    "<h2>Decisión</h2><pre>" + json.dumps(
+        ablation_decision, ensure_ascii=False, indent=2
+    ) + "</pre>",
+]), encoding="utf-8")
+
+required_outputs = [
+    PROJECT_ROOT / "artifacts/tables/feature_ablation_mart.parquet",
+    PROJECT_ROOT / "artifacts/tables/feature_ablation_predictions.parquet",
+    PROJECT_ROOT / "artifacts/tables/feature_ablation_metrics.csv",
+    PROJECT_ROOT / "artifacts/tables/feature_ablation_registry.csv",
+    PROJECT_ROOT / "artifacts/feature_ablation_decision.json",
+    report_path,
+]
+final_checks = {
+    "all_outputs_exist": all(path.exists() for path in required_outputs),
+    **context_checks,
+    **temporal_checks,
+}
+display(pd.Series(final_checks, name="aprobado").to_frame())
+assert all(final_checks.values())""",
+            "write-feature-ablation-report",
+            ["artifact-feature-ablation-report", "summary"],
+        ),
+        code(
+            """display(Markdown(
+    f"**Cierre.** Grupo estricto seleccionado: "
+    f"`{ablation_decision['selected_feature_group_for_2027']}`. "
+    f"ECEG promovido: `{ablation_decision['eceg_promoted']}`. "
+    f"Tiempo total: `{time.perf_counter()-RUN_STARTED:.1f}` s."
+))""",
+            "feature-ablation-final-interpretation",
+            ["summary"],
+        ),
+    ]
+    notebook = nbf.v4.new_notebook(cells=cells)
+    notebook["metadata"] = {
+        "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
+        "language_info": {"name": "python", "version": "3.12"},
+    }
+    return notebook
+
+
+def notebook_10() -> nbf.NotebookNode:
+    cells = [
+        md(
+            """# 10 · Challengers tabulares
+
+**Objetivo.** Saber si XGBoost, LightGBM o Extra Trees predicen mejor que el `HistGradientBoostingRegressor` actual sin cambiar simultáneamente los datos ni la evaluación.
+
+**Baseline del MAE.** Participación anterior de la misma familia electoral para sección estable o componente oficial A+B (`lag_same_type_stable_plus_official_lineage`).
+
+**Control experimental.** Todos usan `territorial_context`, folds 2018/2021/2024, pesos por registros identificados, predicción residual con contracción 0.25 y la misma corrección nacional. Cada familia tiene una especificación moderada congelada; no hay búsqueda masiva con sólo tres targets.
+
+**Gate.** Un challenger debe mejorar el MAE ponderado 2021 frente al boosting actual y no deteriorar 2018 ni 2024 más de 0.5 pp.""",
+            "tabular-challengers-intro",
+            ["scope"],
+        ),
+        code(
+            """from pathlib import Path
+import json
+import time
+
+import pandas as pd
+import yaml
+from IPython.display import Markdown, display
+
+from radar27.modeling.tabular_challengers import (
+    run_tabular_challengers,
+    write_tabular_challenger_decision,
+)
+
+
+def find_project_root(start: Path) -> Path:
+    for candidate in [start, *start.parents]:
+        if (candidate / "pyproject.toml").exists() and (
+            candidate / "configs/tabular_challengers.yaml"
+        ).exists():
+            return candidate
+    raise FileNotFoundError("No se encontró la raíz del proyecto")
+
+
+PROJECT_ROOT = find_project_root(Path.cwd().resolve())
+RUN_STARTED = time.perf_counter()
+with (PROJECT_ROOT / "configs/tabular_challengers.yaml").open(encoding="utf-8") as stream:
+    challenger_config = yaml.safe_load(stream)
+mart_path = PROJECT_ROOT / "artifacts/tables/feature_ablation_mart.parquet"
+assert mart_path.exists()
+challenger_mart = pd.read_parquet(mart_path)
+display(pd.DataFrame(challenger_config["models"]).T)
+display(Markdown(
+    f"Se comparan `{len(challenger_config['models'])}` familias sobre "
+    f"`{len(challenger_mart):,}` filas del mart y las mismas variables territoriales."
+))""",
+            "tabular-challengers-setup",
+            ["setup", "config"],
+        ),
+        md(
+            """## Backtests fuera de tiempo
+
+Para cada elección, el entrenamiento contiene únicamente elecciones anteriores. Cada algoritmo ajusta un modelo directo de respaldo y otro que estima cuánto corregir el baseline.""",
+            "tabular-challengers-question",
+        ),
+        code(
+            """challenger_predictions, challenger_metrics, challenger_registry = (
+    run_tabular_challengers(PROJECT_ROOT, challenger_mart)
+)
+metric_view = challenger_metrics.copy()
+for column in [
+    "baseline_weighted_mae", "identified_weighted_mae",
+    "mae_change_vs_baseline", "mae_change_vs_reference",
+]:
+    metric_view[column] = 100 * metric_view[column]
+display(metric_view[[
+    "target_year", "model_id", "baseline_weighted_mae",
+    "identified_weighted_mae", "mae_change_vs_reference", "fit_seconds",
+]])""",
+            "run-tabular-challengers",
+            ["artifact-challenger-predictions", "artifact-challenger-metrics", "artifact-challenger-registry"],
+        ),
+        code(
+            """audit_checks = {
+    "same_feature_group": set(challenger_metrics.feature_group) == {"territorial_context"},
+    "all_models_all_folds": all(
+        set(group.target_year) == {2018, 2021, 2024}
+        for _, group in challenger_metrics.groupby("model_id")
+    ),
+    "training_strictly_prior": all(
+        all(int(year) < int(row.target_year) for year in str(row.training_target_years).split("|"))
+        for row in challenger_registry.itertuples(index=False)
+    ),
+    "same_numeric_features_per_fold": bool(
+        challenger_registry.groupby("target_year").numeric_features.nunique().eq(1).all()
+    ),
+    "same_categorical_features_per_fold": bool(
+        challenger_registry.groupby("target_year").categorical_features.nunique().eq(1).all()
+    ),
+}
+display(pd.Series(audit_checks, name="aprobado").to_frame())
+assert all(audit_checks.values())""",
+            "audit-tabular-challengers",
+            ["leakage", "validation"],
+        ),
+        md(
+            """## Decisión
+
+2021 es el target principal congelado. Los otros dos años protegen contra una mejora accidental de un solo ciclo.""",
+            "tabular-challengers-decision-question",
+        ),
+        code(
+            """challenger_decision = write_tabular_challenger_decision(
+    PROJECT_ROOT, challenger_metrics
+)
+display(pd.Series(challenger_decision).to_frame("valor"))""",
+            "write-tabular-challenger-decision",
+            ["artifact-challenger-decision", "gate"],
+        ),
+        code(
+            """report_path = PROJECT_ROOT / "artifacts/reports/tabular_challengers.html"
+report_path.parent.mkdir(parents=True, exist_ok=True)
+report_path.write_text("\\n".join([
+    "<h1>RADAR 27 · Challengers tabulares</h1>",
+    "<p>Generado por notebooks/10_tabular_challengers.ipynb.</p>",
+    "<h2>Métricas</h2>", challenger_metrics.to_html(index=False),
+    "<h2>Registro</h2>", challenger_registry.to_html(index=False),
+    "<h2>Decisión</h2><pre>" + json.dumps(
+        challenger_decision, ensure_ascii=False, indent=2
+    ) + "</pre>",
+]), encoding="utf-8")
+
+required_outputs = [
+    PROJECT_ROOT / "artifacts/tables/tabular_challenger_predictions.parquet",
+    PROJECT_ROOT / "artifacts/tables/tabular_challenger_metrics.csv",
+    PROJECT_ROOT / "artifacts/tables/tabular_challenger_registry.csv",
+    PROJECT_ROOT / "artifacts/tabular_challenger_decision.json",
+    report_path,
+]
+final_checks = {
+    "all_outputs_exist": all(path.exists() for path in required_outputs),
+    **audit_checks,
+}
+display(pd.Series(final_checks, name="aprobado").to_frame())
+assert all(final_checks.values())""",
+            "write-tabular-challenger-report",
+            ["artifact-challenger-report", "summary"],
+        ),
+        code(
+            """display(Markdown(
+    f"**Cierre.** Mejor modelo en 2021: `{challenger_decision['best_primary_model']}`; "
+    f"challenger promovido: `{challenger_decision['challenger_promoted']}`; "
+    f"selección: `{challenger_decision['selected_model_for_next_iteration']}`. "
+    f"Tiempo total: `{time.perf_counter()-RUN_STARTED:.1f}` s."
+))""",
+            "tabular-challengers-final-interpretation",
+            ["summary"],
+        ),
+    ]
+    notebook = nbf.v4.new_notebook(cells=cells)
+    notebook["metadata"] = {
+        "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
+        "language_info": {"name": "python", "version": "3.12"},
+    }
+    return notebook
+
+
+def notebook_11() -> nbf.NotebookNode:
+    cells = [
+        md(
+            """# 11 · Red neuronal densa como challenger
+
+**Objetivo.** Comprobar si una red neuronal densa pequeña mejora al HistGradientBoosting seleccionado sin cambiar features, folds ni ajustes posteriores.
+
+**Arquitectura.** `MLPRegressor` con dos capas ocultas de 64 y 32 neuronas ReLU. La entrada y el objetivo se estandarizan con estadísticas del entrenamiento. Adam usa parada temprana sobre una fracción interna que contiene sólo elecciones anteriores al target.
+
+**Control.** Se conservan `territorial_context`, folds 2018/2021/2024, pesos por registros identificados, baseline de misma familia, contracción residual 0.25 y corrección nacional.
+
+**Gate.** Debe mejorar el MAE ponderado 2021 y no deteriorar 2018/2024 más de 0.5 pp.""",
+            "dense-neural-intro",
+            ["scope"],
+        ),
+        code(
+            """from pathlib import Path
+import json
+import time
+
+import pandas as pd
+import yaml
+from IPython.display import Markdown, display
+
+from radar27.modeling.neural_challenger import (
+    run_dense_neural_challenger,
+    write_dense_neural_decision,
+)
+
+
+def find_project_root(start: Path) -> Path:
+    for candidate in [start, *start.parents]:
+        if (candidate / "pyproject.toml").exists() and (
+            candidate / "configs/dense_neural_challenger.yaml"
+        ).exists():
+            return candidate
+    raise FileNotFoundError("No se encontró la raíz del proyecto")
+
+
+PROJECT_ROOT = find_project_root(Path.cwd().resolve())
+RUN_STARTED = time.perf_counter()
+with (PROJECT_ROOT / "configs/dense_neural_challenger.yaml").open(encoding="utf-8") as stream:
+    neural_config = yaml.safe_load(stream)
+mart_path = PROJECT_ROOT / "artifacts/tables/feature_ablation_mart.parquet"
+reference_path = PROJECT_ROOT / "artifacts/tables/tabular_challenger_metrics.csv"
+assert mart_path.exists() and reference_path.exists()
+neural_mart = pd.read_parquet(mart_path)
+display(pd.Series(neural_config["network"], name="valor").to_frame())""",
+            "dense-neural-setup",
+            ["setup", "config"],
+        ),
+        md(
+            """## Backtests fuera de tiempo
+
+La red estima el mismo residual que los árboles. El objetivo se estandariza dentro de cada fold porque los residuales tienen una escala pequeña; la transformación se invierte antes de medir MAE.""",
+            "dense-neural-question",
+        ),
+        code(
+            """neural_predictions, neural_metrics, neural_registry = (
+    run_dense_neural_challenger(PROJECT_ROOT, neural_mart)
+)
+metric_view = neural_metrics.copy()
+for column in [
+    "baseline_weighted_mae", "identified_weighted_mae",
+    "reference_weighted_mae", "mae_change_vs_reference",
+]:
+    metric_view[column] = 100 * metric_view[column]
+display(metric_view[[
+    "target_year", "identified_weighted_mae", "reference_weighted_mae",
+    "mae_change_vs_reference", "direct_iterations", "residual_iterations",
+    "fit_seconds",
+]])""",
+            "run-dense-neural-challenger",
+            ["artifact-neural-predictions", "artifact-neural-metrics", "artifact-neural-registry"],
+        ),
+        code(
+            """audit_checks = {
+    "same_feature_group": set(neural_metrics.feature_group) == {"territorial_context"},
+    "all_folds": set(neural_metrics.target_year) == {2018, 2021, 2024},
+    "training_strictly_prior": all(
+        all(int(year) < int(row.target_year) for year in str(row.training_target_years).split("|"))
+        for row in neural_registry.itertuples(index=False)
+    ),
+    "positive_target_scales": bool(
+        neural_registry.direct_target_scale.gt(0).all()
+        and neural_registry.residual_target_scale.gt(0).all()
+    ),
+    "finite_predictions": bool(neural_predictions.prediction.notna().all()),
+}
+display(pd.Series(audit_checks, name="aprobado").to_frame())
+assert all(audit_checks.values())""",
+            "audit-dense-neural-challenger",
+            ["leakage", "validation"],
+        ),
+        code(
+            """neural_decision = write_dense_neural_decision(PROJECT_ROOT, neural_metrics)
+display(pd.Series(neural_decision).to_frame("valor"))""",
+            "write-dense-neural-decision",
+            ["artifact-neural-decision", "gate"],
+        ),
+        code(
+            """report_path = PROJECT_ROOT / "artifacts/reports/dense_neural_challenger.html"
+report_path.parent.mkdir(parents=True, exist_ok=True)
+report_path.write_text("\\n".join([
+    "<h1>RADAR 27 · Red neuronal densa</h1>",
+    "<p>Generado por notebooks/11_dense_neural_challenger.ipynb.</p>",
+    "<h2>Métricas</h2>", neural_metrics.to_html(index=False),
+    "<h2>Registro</h2>", neural_registry.to_html(index=False),
+    "<h2>Decisión</h2><pre>" + json.dumps(
+        neural_decision, ensure_ascii=False, indent=2
+    ) + "</pre>",
+]), encoding="utf-8")
+required_outputs = [
+    PROJECT_ROOT / "artifacts/tables/dense_neural_predictions.parquet",
+    PROJECT_ROOT / "artifacts/tables/dense_neural_metrics.csv",
+    PROJECT_ROOT / "artifacts/tables/dense_neural_registry.csv",
+    PROJECT_ROOT / "artifacts/dense_neural_decision.json",
+    report_path,
+]
+final_checks = {"all_outputs_exist": all(path.exists() for path in required_outputs), **audit_checks}
+display(pd.Series(final_checks, name="aprobado").to_frame())
+assert all(final_checks.values())""",
+            "write-dense-neural-report",
+            ["artifact-neural-report", "summary"],
+        ),
+        code(
+            """display(Markdown(
+    f"**Cierre.** MAE 2021 de la red: "
+    f"`{100*neural_decision['challenger_primary_weighted_mae']:.2f} pp`; "
+    f"referencia: `{100*neural_decision['reference_primary_weighted_mae']:.2f} pp`; "
+    f"promovida: `{neural_decision['challenger_promoted']}`. "
+    f"Tiempo total: `{time.perf_counter()-RUN_STARTED:.1f}` s."
+))""",
+            "dense-neural-final-interpretation",
+            ["summary"],
+        ),
+    ]
+    notebook = nbf.v4.new_notebook(cells=cells)
+    notebook["metadata"] = {
+        "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
+        "language_info": {"name": "python", "version": "3.12"},
+    }
+    return notebook
+
+
 def main() -> None:
     output_dir = ROOT / "notebooks"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -1704,6 +2924,12 @@ def main() -> None:
     nbf.write(notebook_03(), output_dir / "03_geography_graph.ipynb")
     nbf.write(notebook_04(), output_dir / "04_panel_build_audit.ipynb")
     nbf.write(notebook_05(), output_dir / "05_feature_model_evaluation.ipynb")
+    nbf.write(notebook_06(), output_dir / "06_uncertainty_spatial_validation.ipynb")
+    nbf.write(notebook_07(), output_dir / "07_calibration_adaptation.ipynb")
+    nbf.write(notebook_08(), output_dir / "08_forecast_2027_experimental.ipynb")
+    nbf.write(notebook_09(), output_dir / "09_feature_ablation.ipynb")
+    nbf.write(notebook_10(), output_dir / "10_tabular_challengers.ipynb")
+    nbf.write(notebook_11(), output_dir / "11_dense_neural_challenger.ipynb")
 
 
 if __name__ == "__main__":

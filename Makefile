@@ -1,4 +1,4 @@
-.PHONY: setup fetch-data audit clean-data geography evaluate features-models notebooks test
+.PHONY: setup fetch-data audit clean-data geography evaluate features-models uncertainty calibration-adaptation forecast-2027 feature-ablation tabular-challengers dense-neural notebooks test
 
 setup:
 	uv sync --locked
@@ -21,6 +21,24 @@ evaluate:
 
 features-models:
 	uv run python scripts/run_notebooks.py --only feature_model_evaluation
+
+uncertainty:
+	uv run python scripts/run_notebooks.py --only uncertainty_spatial_validation
+
+calibration-adaptation:
+	uv run python scripts/run_notebooks.py --only calibration_adaptation
+
+forecast-2027:
+	uv run python scripts/run_notebooks.py --only forecast_2027_experimental
+
+feature-ablation:
+	uv run python scripts/run_notebooks.py --only feature_ablation
+
+tabular-challengers:
+	uv run python scripts/run_notebooks.py --only tabular_challengers
+
+dense-neural:
+	uv run python scripts/run_notebooks.py --only dense_neural_challenger
 
 notebooks:
 	uv run python scripts/run_notebooks.py

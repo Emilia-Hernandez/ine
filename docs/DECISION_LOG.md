@@ -120,3 +120,75 @@
 - Evidencia: en 2021 reduce MAE ponderado de 9.38 a 8.97 pp y eleva cobertura de 93.77% a 96.10%; los deterioros 2018/2024 son 0.46/0.26 pp, dentro del máximo de 0.5 pp.
 - Riesgo: error absoluto todavía elevado, pocos folds y evidencia 2024 parcial.
 - Reversible: sí; el baseline, predicciones y gate permanecen congelados.
+
+## D-016 — Calibrar intervalos sólo con residuos fuera de tiempo anteriores
+
+- Fecha: 2026-10-06
+- Decisión: usar conformal de residuo absoluto al 90% con calibración móvil; 2021 recibe únicamente residuos 2018 y 2024 recibe 2018–2021.
+- Evidencia: la restricción `max_calibration_target_year < target_year` pasa en todas las unidades y evita calibrar con el test evaluado.
+- Riesgo: sólo hay dos evaluaciones de cobertura y la intercambiabilidad temporal es débil.
+- Reversible: sí, mediante un método adaptativo preespecificado y evaluado con la misma restricción temporal.
+
+## D-017 — No declarar listos los intervalos 2027
+
+- Fecha: 2026-10-06
+- Decisión: conservar el boosting como candidato, pero bloquear una proyección 2027 con intervalos publicables.
+- Evidencia: cobertura nominal 90%; observada 62.35% en 2021 y 97.10% en 2024. El diagnóstico espacial agregado no empeora el MAE en 2018, 2021 ni 2024.
+- Riesgo: retrasar la proyección; evita comunicar incertidumbre falsamente calibrada.
+- Reversible: cuando un método temporalmente válido supere el piso de cobertura congelado sin deteriorar materialmente la anchura.
+
+## D-018 — Corregir el centro con el ciclo anterior de la misma familia
+
+- Fecha: 2026-10-06
+- Decisión: sumar al candidato el cambio nacional ponderado observado seis años antes en la misma familia electoral.
+- Evidencia: en 2021 reduce MAE ponderado de 8.97 a 8.31 pp y sesgo de −4.60 a −1.59 pp; en 2024 empeora 0.27 pp, dentro del límite de 0.5 pp.
+- Riesgo: un único ciclo previo puede no representar 2027.
+- Reversible: sí; la predicción original y la corrección quedan en columnas separadas.
+
+## D-019 — Promover el análogo familiar sólo para experimentación
+
+- Fecha: 2026-10-06
+- Decisión: usar el intervalo de análogo familiar como candidato de la canalización experimental 2027, sin prometer cobertura pública.
+- Evidencia: cobertura 90.41% en 2021 y 87.08% en 2024, ambas sobre el piso diagnóstico de 85%, pero 2024 bajo el nominal de 90%.
+- Riesgo: 2021 requiere un arranque frío basado en el baseline 2015 y los intervalos son anchos.
+- Reversible: sí; se conservan los tres métodos y todas sus métricas.
+
+## D-020 — Emitir una proyección 2027 sólo como snapshot experimental
+
+- Fecha: 2026-10-06
+- Decisión: entrenar el boosting residual congelado con targets hasta 2024, aplicar +5.21 pp de corrección nacional y expandir a las 70,751 secciones del snapshot 2024 con respaldo jerárquico para C/D.
+- Evidencia: el modelo corregido mejora el baseline en 2021 por 1.07 pp de MAE, pero lo empeora en 2024 por 0.54 pp; no existe outcome 2027 para calcular error.
+- Riesgo: la geografía futura puede cambiar y el promedio proyectado puede confundirse con un resultado oficial.
+- Reversible: sí; baseline, residual, ajuste nacional, intervalo y fuente territorial permanecen en columnas separadas.
+
+## D-021 — Promover contexto territorial y no ECEG al predictor puntual
+
+- Fecha: 2026-10-06
+- Decisión: seleccionar historia + contexto relativo de entidad/nación para la siguiente iteración 2027; conservar sexo/edad y ECEG para segmentación y escenarios.
+- Evidencia: frente al conjunto actual, el contexto reduce MAE 0.56 pp en 2018, 0.21 pp en 2021 y 0.32 pp en 2024. La combinación completa con ECEG mejora sólo 0.025 pp adicionales en 2024, debajo del umbral de 0.1 pp.
+- Riesgo: los agregados estatales no sustituyen vecindad espacial y ECEG sólo tiene un target temporalmente válido.
+- Reversible: sí; predicciones y registros de los seis grupos quedan conservados.
+
+## D-022 — Retener HistGradientBoosting frente a challengers tabulares
+
+- Fecha: 2026-10-06
+- Decisión: conservar `HistGradientBoostingRegressor` residual; no promover XGBoost, LightGBM ni Extra Trees.
+- Evidencia: con features, folds y ajustes constantes, los MAE 2021 fueron 8.098 pp para HistGradientBoosting, 8.104 para XGBoost, 8.196 para LightGBM y 8.446 para Extra Trees. XGBoost mejoró 2018 a 4.145 pp, pero no ganó el target principal.
+- Riesgo: una especificación distinta podría cambiar el orden; una búsqueda amplia con sólo tres targets aumentaría el sobreajuste de selección.
+- Reversible: sí; se conservan configuración, versiones, predicciones, métricas y registro de las cuatro familias.
+
+## D-023 — Actualizar 2027 con contexto territorial y recalibrar intervalos
+
+- Fecha: 2026-10-06
+- Decisión: reemplazar el conjunto electoral anterior por `territorial_context` en la proyección experimental 2027 y recalibrar los radios A/B con sus propios errores fuera de tiempo 2021.
+- Evidencia: el MAE baja de 8.31 a 8.10 pp en 2021 y de 4.96 a 4.64 pp en 2024; los radios A/B bajan de 17.98/19.46 a 17.52/19.32 pp. El promedio 2027 cambia de 57.06% a 57.15%.
+- Riesgo: el centro sigue usando geografía 2024 y los intervalos sólo tienen un análogo intermedio; no es un pronóstico oficial publicable.
+- Reversible: sí; features, componente residual, ajuste nacional, radios y procedencia quedan separados en los artefactos.
+
+## D-024 — No promover la red neuronal densa
+
+- Fecha: 2026-10-06
+- Decisión: retener HistGradientBoosting y conservar la red MLP 64–32 sólo como challenger documentado.
+- Evidencia: la red obtiene MAE de 5.262, 8.903 y 4.665 pp en 2018, 2021 y 2024, frente a 4.286, 8.098 y 4.636 pp del árbol. Falla el target principal y el límite de robustez 2018.
+- Riesgo: otra arquitectura podría rendir mejor, pero una búsqueda amplia sobre tres targets sobreajustaría la elección del modelo.
+- Reversible: sí; arquitectura, escalas, iteraciones, predicciones y métricas quedan registradas.

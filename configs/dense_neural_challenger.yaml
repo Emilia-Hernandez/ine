@@ -1,0 +1,29 @@
+version: 1
+objective: compare_small_dense_network_with_selected_tree_model
+model_id: dense_mlp
+model_label: MLPRegressor_64_32
+reference_model: hist_gradient_boosting
+feature_group: territorial_context
+feature_config: configs/feature_ablation.yaml
+random_seed: 27
+evaluation_targets: [2018, 2021, 2024]
+primary_target_year: 2021
+baseline_model: lag_same_type_stable_plus_official_lineage
+residual_shrinkage: 0.25
+maximum_other_fold_weighted_mae_deterioration: 0.005
+
+# Arquitectura deliberadamente pequeña. La parada usa una fracción aleatoria
+# de los años de entrenamiento, todos estrictamente anteriores al target.
+network:
+  hidden_layer_sizes: [64, 32]
+  activation: relu
+  solver: adam
+  loss: squared_error
+  alpha: 0.001
+  batch_size: 1024
+  learning_rate_init: 0.001
+  max_iter: 120
+  early_stopping: true
+  validation_fraction: 0.15
+  n_iter_no_change: 12
+  tol: 0.0001
