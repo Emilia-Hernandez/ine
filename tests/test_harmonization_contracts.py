@@ -100,6 +100,8 @@ def test_exclusion_log_and_geography_gate() -> None:
     assert not exclusions["action"].eq("excluded").any()
     with (ROOT / "configs/geography_sources.yaml").open(encoding="utf-8") as stream:
         geography = yaml.safe_load(stream)
-    assert geography["status"] == "request_required"
+    assert geography["status"] == (
+        "spatial_adjacency_available_historical_crosswalk_request_required"
+    )
     assert geography["crosswalk_downloaded"] is False
-    assert geography["geometry_downloaded"] is False
+    assert geography["geometry_downloaded"] is True

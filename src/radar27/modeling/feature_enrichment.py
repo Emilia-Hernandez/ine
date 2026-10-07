@@ -7,6 +7,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from radar27.modeling.electoral_context import add_electoral_context
 from radar27.modeling.feature_models import _load_yaml, _pipeline
 
 
@@ -57,7 +58,8 @@ def build_enriched_feature_mart(project_root: Path) -> pd.DataFrame:
         "stable_section_type_" + enriched["section_type_code"].fillna("unknown").astype(str),
     )
     enriched = add_relative_territorial_context(enriched)
-    enriched["context_source_max_year"] = enriched["max_electoral_feature_year"]
+    enriched = add_electoral_context(project_root, enriched)
+    enriched["context_source_max_year"] = enriched["electoral_context_source_max_year"]
     if not (enriched["context_source_max_year"] < enriched["target_year"]).all():
         raise ValueError("El contexto territorial contiene información del target")
     enriched.to_parquet(
@@ -305,7 +307,15 @@ def write_feature_ablation_decision(
         "limitations": [
             "ECEG 2020 is only strictly available for the 2024 forecast origin and later.",
             "ECEG promotion relies on one historical target year.",
-            "Territorial context uses entity and national aggregates, not polygon adjacency.",
+            (
+                "Competition uses the prior federal contest of the same family, consolidated "
+                "to candidacies within each district; it does not use target-election results."
+            ),
+            "Local concurrence is a target-known schedule feature, not a post-election outcome.",
+            (
+                "The 2027 local schedule is frozen as published by INE on the configuration "
+                "as-of date."
+            ),
         ],
     }
     (project_root / "artifacts/feature_ablation_decision.json").write_text(

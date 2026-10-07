@@ -1,6 +1,6 @@
 # Resultados de la proyección experimental 2027 actualizada
 
-Actualizado: 2026-10-06.
+Actualizado: 2026-10-07.
 
 ## Resultado operacional
 
@@ -8,32 +8,33 @@ Actualizado: 2026-10-06.
 - Boosting aplicado: 65,095 secciones A/B, mediante 59,772 unidades de modelado.
 - Respaldo jerárquico: 5,656 secciones C/D.
 - Baseline ponderado por lista nominal actual: 51.77%.
-- Features del modelo: historia + contexto territorial relativo.
-- Proyección experimental ponderada: **57.15% de participación**.
+- Features del modelo: historia + contexto territorial relativo + competencia federal previa + concurrencia local 2027.
+- Proyección experimental ponderada: **57.31% de participación**.
 - Corrección nacional incluida: +5.21 pp.
+- Corrección estatal incluida: −0.50 × el desvío del cambio estatal 2015–2021 respecto al nacional.
 
-El 57.15% es un promedio de predicciones seccionales ponderado con la lista nominal 2024 disponible. La versión anterior, sin contexto territorial, era 57.06%; el cambio es +0.09 pp. No es resultado oficial, estimación de votos emitidos ni intervalo nacional.
+El 57.31% es un promedio de predicciones seccionales ponderado con la lista nominal 2024 disponible. Antes de la corrección estatal, la versión con competencia y concurrencia era 57.29%; el nuevo ajuste cambia poco el agregado nacional (+0.02 pp), pero redistribuye la predicción entre entidades. No es resultado oficial, estimación de votos emitidos ni intervalo nacional.
 
 ## Resultado por clase territorial
 
 | Clase | Secciones | Estrategia | Predicción ponderada |
 |---|---:|---|---:|
-| A | 58,534 | boosting residual territorial | 58.35% |
-| B | 6,561 | boosting territorial sobre componente oficial | 49.66% |
-| C | 1,865 | respaldo jerárquico | 54.06% |
-| D | 3,791 | respaldo jerárquico | 54.20% |
+| A | 58,534 | boosting residual enriquecido | 58.38% |
+| B | 6,561 | boosting enriquecido sobre componente oficial | 50.42% |
+| C | 1,865 | respaldo jerárquico | 54.00% |
+| D | 3,791 | respaldo jerárquico | 55.14% |
 
-Los radios seccionales recalibrados al nominal 90% son 17.52 pp para A, 19.32 pp para B, 20.46 pp para C y 20.52 pp para D. Frente a la versión anterior, A se estrecha 0.46 pp y B 0.14 pp. Siguen siendo amplios porque la variación histórica es grande y sólo existe un análogo intermedio para calibrarlos.
+Los radios seccionales recalibrados al nominal 90% son 16.09 pp para A, 17.43 pp para B, 20.46 pp para C y 20.52 pp para D. Siguen siendo amplios porque la variación histórica es grande y sólo existe un análogo intermedio para calibrarlos.
 
 ## Comparación histórica de MAE
 
-| Target | Baseline: última elección del mismo tipo | Boosting + corrección nacional | Diferencia |
+| Target | Baseline: última elección del mismo tipo | Boosting + correcciones nacional/estatal | Diferencia |
 |---:|---:|---:|---:|
-| 2018 | 4.39 pp | **4.29 pp** | −0.10 pp |
-| 2021 | 9.38 pp | **8.10 pp** | −1.29 pp |
-| 2024 | **4.42 pp** | 4.64 pp | +0.22 pp |
+| 2018 | **4.39 pp** | 4.48 pp | +0.09 pp |
+| 2021 | 9.38 pp | **7.35 pp** | −2.03 pp |
+| 2024 | **4.42 pp** | 4.52 pp | +0.10 pp |
 
-El modelo territorial gana claramente en el análogo principal 2021 y reduce mucho el deterioro de 2024 respecto a la versión anterior: de +0.54 pp a +0.22 pp frente al baseline. Aun así, el baseline conserva ventaja en 2024, por lo que no puede afirmarse que el modelo sea universalmente superior.
+El modelo corregido gana claramente en el análogo principal 2021 y mejora frente a su propia versión sin corrección en 2024. El baseline simple conserva una ventaja pequeña en 2018 y 2024, por lo que no puede afirmarse que el modelo sea universalmente superior.
 
 No existe MAE 2027: el MAE requiere comparar con participación real y esa observación todavía no existe.
 

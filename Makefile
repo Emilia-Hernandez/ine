@@ -1,4 +1,4 @@
-.PHONY: setup fetch-data audit clean-data geography evaluate features-models uncertainty calibration-adaptation forecast-2027 feature-ablation tabular-challengers dense-neural notebooks test
+.PHONY: setup fetch-data audit clean-data geography spatial-graph gnn-data graph-embedding neighbor-embedding sociodemographic-similarity spatial-features midterm-transfer entity-cycle-adaptation turnout-risk-profiles evaluate features-models uncertainty calibration-adaptation forecast-2027 feature-ablation tabular-challengers dense-neural notebooks test
 
 setup:
 	uv sync --locked
@@ -15,6 +15,33 @@ clean-data:
 
 geography:
 	uv run python scripts/run_notebooks.py --only public_geography_lineage
+
+spatial-graph:
+	uv run python scripts/build_section_graph.py --download
+
+gnn-data:
+	uv run python scripts/build_gnn_dataset.py --download
+
+graph-embedding:
+	uv run python scripts/run_graph_embedding_challenger.py
+
+neighbor-embedding:
+	uv run python scripts/run_neighbor_only_embedding_challenger.py
+
+sociodemographic-similarity:
+	uv run python scripts/run_sociodemographic_similarity_challenger.py
+
+spatial-features:
+	uv run python scripts/run_spatial_feature_challenger.py
+
+midterm-transfer:
+	uv run python scripts/run_midterm_transfer_experiment.py
+
+entity-cycle-adaptation:
+	uv run python scripts/run_entity_cycle_adaptation.py
+
+turnout-risk-profiles:
+	uv run python scripts/run_turnout_risk_profiles.py
 
 evaluate:
 	uv run python scripts/run_notebooks.py --only panel_backtest_evaluation

@@ -2434,6 +2434,7 @@ from radar27.modeling.feature_enrichment import (
     run_feature_ablation,
     write_feature_ablation_decision,
 )
+from radar27.modeling.entity_cycle_adaptation import run_entity_cycle_adaptation
 
 
 def find_project_root(start: Path) -> Path:
@@ -2540,9 +2541,14 @@ La promoción estricta exige mejorar 2021 y no deteriorar los otros folds más d
             """ablation_decision = write_feature_ablation_decision(
     PROJECT_ROOT, ablation_metrics
 )
-display(pd.Series(ablation_decision).to_frame("valor"))""",
+display(pd.Series(ablation_decision).to_frame("valor"))
+
+entity_cycle_predictions, entity_cycle_metrics, entity_cycle_decision = (
+    run_entity_cycle_adaptation(PROJECT_ROOT)
+)
+display(pd.Series(entity_cycle_decision).to_frame("valor"))""",
             "write-feature-ablation-decision",
-            ["artifact-feature-ablation-decision", "gate"],
+            ["artifact-feature-ablation-decision", "artifact-entity-cycle-adaptation", "gate"],
         ),
         code(
             """strict_pivot = ablation_metrics[
@@ -2569,6 +2575,8 @@ report_path.write_text("\\n".join([
     "<h2>Decisión</h2><pre>" + json.dumps(
         ablation_decision, ensure_ascii=False, indent=2
     ) + "</pre>",
+    "<h2>Adaptación estatal</h2>", entity_cycle_metrics.to_html(index=False),
+    "<pre>" + json.dumps(entity_cycle_decision, ensure_ascii=False, indent=2) + "</pre>",
 ]), encoding="utf-8")
 
 required_outputs = [
@@ -2577,6 +2585,9 @@ required_outputs = [
     PROJECT_ROOT / "artifacts/tables/feature_ablation_metrics.csv",
     PROJECT_ROOT / "artifacts/tables/feature_ablation_registry.csv",
     PROJECT_ROOT / "artifacts/feature_ablation_decision.json",
+    PROJECT_ROOT / "artifacts/tables/entity_cycle_adaptation_predictions.parquet",
+    PROJECT_ROOT / "artifacts/tables/entity_cycle_adaptation_metrics.csv",
+    PROJECT_ROOT / "artifacts/entity_cycle_adaptation_decision.json",
     report_path,
 ]
 final_checks = {

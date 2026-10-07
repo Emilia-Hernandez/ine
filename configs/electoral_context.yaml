@@ -1,0 +1,217 @@
+version: 1
+as_of_date: "2026-10-06"
+
+# Participacion estatal observada en las dos elecciones federales previas de la
+# misma familia. Se usa el agregado territorial nacional (sin voto extranjero)
+# y siempre dos fuentes anteriores al target.
+turnout_sources:
+  2003:
+    election_family: midterm
+    ballot: diputaciones_federales_mr
+    archive_path: data/raw/public_ine/electoral_results/DIPUTACIONES_FED_MR_2003.zip
+    member_suffix: 2003_SEE_DIP_FED_MR_NAL_ENT.csv
+    url: https://sicee.ine.mx/ACTASSICEEN2024/download/FEDERALES_2003/DIPUTACIONES_FED_MR_2003.zip
+    sha256: 75679c99dfab88df9991345adfe1a1368dc9a7ed0961f77cf5ca415a6443f004
+  2006:
+    election_family: presidential
+    ballot: presidencia
+    archive_path: data/raw/public_ine/electoral_results/PRESIDENCIA_2006.zip
+    member_suffix: 2006_SEE_PRE_NAL_ENT.csv
+    url: https://sicee.ine.mx/ACTASSICEEN2024/download/FEDERALES_2006/PRESIDENCIA_2006.zip
+    sha256: acd0b748349d702ba386406d194b6ad8c8e259292011a59e269e6c2954694454
+  2009:
+    election_family: midterm
+    ballot: diputaciones_federales_mr
+    archive_path: data/raw/public_ine/electoral_results/DIPUTACIONES_FED_MR_2009.zip
+    member_suffix: 2009_SEE_DIP_FED_MR_NAL_ENT.csv
+    url: https://sicee.ine.mx/ACTASSICEEN2024/download/FEDERALES_2009/DIPUTACIONES_FED_MR_2009.zip
+    sha256: 898903c6e39eefde68e55456b51da3a1be6e5d373a7b167dcf4cb48c829666d8
+  2012:
+    election_family: presidential
+    ballot: presidencia
+    archive_path: data/raw/public_ine/electoral_results/PRESIDENCIA_2012.zip
+    member_suffix: 2012_SEE_PRE_NAL_ENT.csv
+    url: https://sicee.ine.mx/ACTASSICEEN2024/download/FEDERALES_2012/PRESIDENCIA_2012.zip
+    sha256: 50ee8d726fb95f39fbe25658fecc0471a1adcbbaccd023f794b4c5ad9e719d67
+  2015:
+    election_family: midterm
+    ballot: diputaciones_federales_mr
+    archive_path: data/raw/public_ine/electoral_results/DIPUTACIONES_FED_MR_2015.zip
+    member_suffix: 2015_SEE_DIP_FED_MR_NAL_ENT.csv
+    url: https://sicee.ine.mx/ACTASSICEEN2024/download/FEDERALES_2015/DIPUTACIONES_FED_MR_2015.zip
+    sha256: 04619c33f60afc75198756591b4a11c238e95f36c0d4ca5756fc973df0331bb6
+  2018:
+    election_family: presidential
+    ballot: presidencia
+    archive_path: data/raw/public_ine/electoral_results/PRESIDENCIA_2018.zip
+    member_suffix: 2018_SEE_PRE_NAL_ENT.csv
+    url: https://sicee.ine.mx/ACTASSICEEN2024/download/FEDERALES_2018/PRESIDENCIA_2018.zip
+    sha256: f04fbad28bb13f960f3136efc7e3e4cbc61a613794429c8433699cb9d86e84c0
+  2021:
+    election_family: midterm
+    ballot: diputaciones_federales_mr
+    archive_path: data/raw/public_ine/electoral_results/DIPUTACIONES_FED_MR_2021.zip
+    member_suffix: 2021_SEE_DIP_FED_MR_NAL_ENT.csv
+    url: https://sicee.ine.mx/ACTASSICEEN2024/download/FEDERALES_2021/DIPUTACIONES_FED_MR_2021.zip
+    sha256: 90e325eed451985506750e7b03444c64b79382fdd31ab9ef4cdfb274e6a6798e
+
+target_turnout_sources:
+  2015: {recent: 2009, previous: 2003}
+  2018: {recent: 2012, previous: 2006}
+  2021: {recent: 2015, previous: 2009}
+  2024: {recent: 2018, previous: 2012}
+  2027: {recent: 2021, previous: 2015}
+
+# Competencia observada en la eleccion federal previa de la misma familia.
+# Las columnas de coalicion se consolidan a nivel candidatura solamente en los
+# distritos donde la combinacion tuvo votos; fuera de ellos los partidos quedan
+# como opciones separadas.
+competition_sources:
+  2009:
+    election_family: midterm
+    ballot: diputaciones_federales_mr
+    archive_path: data/raw/public_ine/electoral_results/DIPUTACIONES_FED_MR_2009.zip
+    member_suffix: 2009_SEE_DIP_FED_MR_NAL_SEC.csv
+    url: https://sicee.ine.mx/ACTASSICEEN2024/download/FEDERALES_2009/DIPUTACIONES_FED_MR_2009.zip
+    sha256: 898903c6e39eefde68e55456b51da3a1be6e5d373a7b167dcf4cb48c829666d8
+    district_column: ID_DISTRITO
+    vote_columns: [PAN, PRI, PRD, PVEM, PT, CONV, NVA_ALIANZA, PSD, PRIMERO_MEXICO, SALVEMOS_MEXICO]
+    alliances:
+      - name: primero_mexico
+        members: [PRI, PVEM]
+        joint_columns: [PRIMERO_MEXICO]
+      - name: salvemos_mexico
+        members: [PT, CONV]
+        joint_columns: [SALVEMOS_MEXICO]
+
+  2012:
+    election_family: presidential
+    ballot: presidencia
+    archive_path: data/raw/public_ine/electoral_results/PRESIDENCIA_2012.zip
+    member_suffix: 2012_SEE_PRE_NAL_SEC.csv
+    url: https://sicee.ine.mx/ACTASSICEEN2024/download/FEDERALES_2012/PRESIDENCIA_2012.zip
+    sha256: 50ee8d726fb95f39fbe25658fecc0471a1adcbbaccd023f794b4c5ad9e719d67
+    district_column: ID_DISTRITO
+    vote_columns: [PAN, PRI, PRD, PVEM, PT, MC, NVA_ALIANZA, PRI_PVEM, PRD_PT_MC, PRD_PT, PRD_MC, PT_MC]
+    alliances:
+      - name: compromiso_por_mexico
+        members: [PRI, PVEM]
+        joint_columns: [PRI_PVEM]
+      - name: movimiento_progresista
+        members: [PRD, PT, MC]
+        joint_columns: [PRD_PT_MC, PRD_PT, PRD_MC, PT_MC]
+
+  2015:
+    election_family: midterm
+    ballot: diputaciones_federales_mr
+    archive_path: data/raw/public_ine/electoral_results/DIPUTACIONES_FED_MR_2015.zip
+    member_suffix: 2015_SEE_DIP_FED_MR_NAL_SEC.csv
+    url: https://sicee.ine.mx/ACTASSICEEN2024/download/FEDERALES_2015/DIPUTACIONES_FED_MR_2015.zip
+    sha256: 04619c33f60afc75198756591b4a11c238e95f36c0d4ca5756fc973df0331bb6
+    district_column: ID_DISTRITO
+    vote_columns: [PAN, PRI, PRD, PVEM, PT, MC, NVA_ALIANZA, MORENA, PH, ES, PAN_NVA_ALIANZA, PRI_PVEM, PRD_PT]
+    candidate_prefixes: [CAND_IND]
+    alliances:
+      - name: pan_nueva_alianza
+        members: [PAN, NVA_ALIANZA]
+        joint_columns: [PAN_NVA_ALIANZA]
+      - name: pri_pvem
+        members: [PRI, PVEM]
+        joint_columns: [PRI_PVEM]
+      - name: prd_pt
+        members: [PRD, PT]
+        joint_columns: [PRD_PT]
+
+  2018:
+    election_family: presidential
+    ballot: presidencia
+    archive_path: data/raw/public_ine/electoral_results/PRESIDENCIA_2018.zip
+    member_suffix: 2018_SEE_PRE_NAL_SEC.csv
+    url: https://sicee.ine.mx/ACTASSICEEN2024/download/FEDERALES_2018/PRESIDENCIA_2018.zip
+    sha256: f04fbad28bb13f960f3136efc7e3e4cbc61a613794429c8433699cb9d86e84c0
+    district_column: ID_DISTRITO
+    vote_columns: [PAN, PRI, PRD, PVEM, PT, MC, NA, MORENA, ES, PAN_PRD_MC, PAN_PRD, PAN_MC, PRD_MC, PRI_PVEM_NA, PRI_PVEM, PRI_NA, PVEM_NA, PT_MORENA_ES, PT_MORENA, PT_ES, MORENA_ES]
+    candidate_prefixes: [CAND_IND]
+    alliances:
+      - name: por_mexico_al_frente
+        members: [PAN, PRD, MC]
+        joint_columns: [PAN_PRD_MC, PAN_PRD, PAN_MC, PRD_MC]
+      - name: todos_por_mexico
+        members: [PRI, PVEM, NA]
+        joint_columns: [PRI_PVEM_NA, PRI_PVEM, PRI_NA, PVEM_NA]
+      - name: juntos_haremos_historia
+        members: [PT, MORENA, ES]
+        joint_columns: [PT_MORENA_ES, PT_MORENA, PT_ES, MORENA_ES]
+
+  2021:
+    election_family: midterm
+    ballot: diputaciones_federales_mr
+    archive_path: data/raw/public_ine/electoral_results/DIPUTACIONES_FED_MR_2021.zip
+    member_suffix: 2021_SEE_DIP_FED_MR_NAL_SEC.csv
+    url: https://sicee.ine.mx/ACTASSICEEN2024/download/FEDERALES_2021/DIPUTACIONES_FED_MR_2021.zip
+    sha256: 90e325eed451985506750e7b03444c64b79382fdd31ab9ef4cdfb274e6a6798e
+    district_column: ID_DISTRITO_FEDERAL
+    vote_columns: [PAN, PRI, PRD, PVEM, PT, MC, MORENA, PES, RSP, FXM, PAN_PRI_PRD, PAN_PRI, PAN_PRD, PRI_PRD, PVEM_PT_MORENA, PVEM_PT, PVEM_MORENA, PT_MORENA]
+    candidate_prefixes: [CAND_IND]
+    alliances:
+      - name: va_por_mexico
+        members: [PAN, PRI, PRD]
+        joint_columns: [PAN_PRI_PRD, PAN_PRI, PAN_PRD, PRI_PRD]
+      - name: juntos_hacemos_historia
+        members: [PVEM, PT, MORENA]
+        joint_columns: [PVEM_PT_MORENA, PVEM_PT, PVEM_MORENA, PT_MORENA]
+
+target_competition_source:
+  2015: 2009
+  2018: 2012
+  2021: 2015
+  2024: 2018
+  2027: 2021
+
+# Calendario conocido antes de cada jornada. Las listas usan claves INE de dos
+# digitos. municipal incluye ayuntamientos, alcaldias y equivalentes locales.
+concurrency:
+  2015:
+    election_date: "2015-06-07"
+    known_by: "2014-10-07"
+    source_url: https://sitios.ine.mx/archivos3/portal/historico/contenido/Calendario_Electoral/
+    local_election_entities: ["03", "04", "06", "09", "11", "12", "14", "15", "16", "17", "19", "22", "24", "26", "27", "31"]
+    executive_entities: ["03", "04", "06", "12", "16", "19", "22", "24", "26"]
+    congress_entities: ["03", "04", "06", "09", "11", "12", "14", "15", "16", "17", "19", "22", "24", "26", "27", "31"]
+    municipal_entities: ["03", "04", "06", "09", "11", "12", "14", "15", "16", "17", "19", "22", "24", "26", "27", "31"]
+
+  2018:
+    election_date: "2018-07-01"
+    known_by: "2017-09-08"
+    source_url: https://www.ine.mx/voto-y-elecciones/elecciones-2018/
+    local_election_entities: all_except_02_18
+    executive_entities: ["07", "09", "11", "14", "17", "21", "27", "30", "31"]
+    congress_entities: all_except_02_05_18_23_28
+    municipal_entities: all_except_01_02_10_13_18_29
+
+  2021:
+    election_date: "2021-06-06"
+    known_by: "2020-09-08"
+    source_url: https://www.ine.mx/voto-y-elecciones/elecciones-2021/
+    local_election_entities: all
+    executive_entities: ["02", "03", "04", "06", "08", "12", "16", "18", "19", "22", "24", "25", "26", "29", "32"]
+    congress_entities: all_except_05_23
+    municipal_entities: all_except_10_13
+
+  2024:
+    election_date: "2024-06-02"
+    known_by: "2023-08-25"
+    source_url: https://repositoriodocumental.ine.mx/xmlui/bitstream/handle/123456789/152943/CGor202308-25-ap-4.pdf
+    local_election_entities: all
+    executive_entities: ["07", "09", "11", "14", "17", "21", "27", "30", "31"]
+    congress_entities: all_except_05
+    municipal_entities: all_except_10_30
+
+  2027:
+    election_date: "2027-06-06"
+    known_by: "2026-07-30"
+    source_url: https://www.ine.mx/voto-y-elecciones/elecciones-2027/
+    local_election_entities: all
+    executive_entities: ["01", "02", "03", "04", "08", "06", "12", "16", "18", "19", "22", "23", "24", "25", "26", "29", "32"]
+    congress_entities: all_except_05
+    municipal_entities: all_except_10_30

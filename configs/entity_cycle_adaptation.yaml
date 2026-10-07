@@ -1,0 +1,10 @@
+version: 1
+base_feature_group: competition_concurrency
+signal: entity_same_family_change_minus_national
+primary_target_year: 2021
+strict_targets: [2018, 2021, 2024]
+candidate_shrinkages: [-0.75, -0.50, -0.25, 0.0, 0.25, 0.50, 0.75]
+minimum_primary_mae_improvement: 0.001
+maximum_other_fold_weighted_mae_deterioration: 0.005
+selection_rule: minimize_primary_weighted_mae_then_smallest_absolute_shrinkage
+interpretation: state_same_family_swing_mean_reversion

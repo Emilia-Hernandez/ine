@@ -380,7 +380,10 @@ notebooks:
       - tabular_challengers
     inputs:
       - configs/forecast_2027.yaml
+      - configs/electoral_context.yaml
+      - configs/entity_cycle_adaptation.yaml
       - configs/modeling.yaml
+      - data/raw/public_ine/electoral_results
       - artifacts/tables/feature_mart_ab.parquet
       - artifacts/tables/feature_ablation_mart.parquet
       - artifacts/tables/national_shift_estimates.csv
@@ -388,6 +391,9 @@ notebooks:
       - artifacts/tables/tabular_challenger_predictions.parquet
       - artifacts/tables/tabular_challenger_metrics.csv
       - artifacts/tabular_challenger_decision.json
+      - artifacts/tables/entity_cycle_adaptation_predictions.parquet
+      - artifacts/tables/entity_cycle_adaptation_metrics.csv
+      - artifacts/entity_cycle_adaptation_decision.json
       - artifacts/calibration_adaptation_decision.json
     outputs:
       - artifacts/tables/forecast_2027_feature_mart.parquet
@@ -437,20 +443,31 @@ notebooks:
     depends_on:
       - calibration_adaptation
     inputs:
+      - configs/electoral_context.yaml
+      - configs/entity_cycle_adaptation.yaml
       - configs/feature_ablation.yaml
       - configs/modeling.yaml
+      - data/raw/public_ine/electoral_results
       - artifacts/tables/feature_mart_ab.parquet
       - artifacts/tables/eceg_2020_section_features.parquet
       - artifacts/tables/national_shift_estimates.csv
       - artifacts/tables/backtest_metrics.csv
     outputs:
+      - data/manifests/electoral_context_source_manifest.csv
       - artifacts/tables/feature_ablation_mart.parquet
       - artifacts/tables/feature_ablation_predictions.parquet
       - artifacts/tables/feature_ablation_metrics.csv
       - artifacts/tables/feature_ablation_registry.csv
       - artifacts/feature_ablation_decision.json
+      - artifacts/tables/entity_cycle_adaptation_predictions.parquet
+      - artifacts/tables/entity_cycle_adaptation_metrics.csv
+      - artifacts/entity_cycle_adaptation_decision.json
       - artifacts/reports/feature_ablation.html
     artifacts:
+      - path: data/manifests/electoral_context_source_manifest.csv
+        type: manifest
+        cell_id: build-feature-ablation-mart
+        cell_tag: artifact-electoral-context-manifest
       - path: artifacts/tables/feature_ablation_mart.parquet
         type: feature_mart
         cell_id: build-feature-ablation-mart
@@ -471,6 +488,18 @@ notebooks:
         type: decision
         cell_id: write-feature-ablation-decision
         cell_tag: artifact-feature-ablation-decision
+      - path: artifacts/tables/entity_cycle_adaptation_predictions.parquet
+        type: predictions
+        cell_id: write-feature-ablation-decision
+        cell_tag: artifact-entity-cycle-adaptation
+      - path: artifacts/tables/entity_cycle_adaptation_metrics.csv
+        type: metrics
+        cell_id: write-feature-ablation-decision
+        cell_tag: artifact-entity-cycle-adaptation
+      - path: artifacts/entity_cycle_adaptation_decision.json
+        type: decision
+        cell_id: write-feature-ablation-decision
+        cell_tag: artifact-entity-cycle-adaptation
       - path: artifacts/reports/feature_ablation.html
         type: report
         cell_id: write-feature-ablation-report

@@ -1,0 +1,39 @@
+version: 1
+objective: test_explicit_spatial_features_with_selected_tabular_model
+random_seed: 27
+evaluation_targets: [2018, 2021, 2024]
+primary_target_year: 2021
+feature_group: territorial_context
+feature_config: configs/feature_ablation.yaml
+reference_model_config: configs/tabular_challengers.yaml
+reference_model: hist_gradient_boosting_without_spatial_explicit
+candidate_model_prefix: hist_gradient_boosting_plus_spatial_explicit
+baseline_model: lag_same_type_stable_sections
+residual_shrinkage: 0.25
+maximum_other_fold_weighted_mae_deterioration: 0.005
+topologies:
+  rook: edge_index_rook
+  augmented: edge_index_augmented
+
+neighbor_source_features:
+  - participation_same_type
+  - participation_lag1
+  - participation_change_lag1_lag2
+  - nominal_list_growth_lag1_lag2
+  - identified_coverage_lag1
+neighbor_statistics: [mean, std, node_minus_mean, zscore]
+two_hop_source_feature: participation_same_type
+zscore_clip: 10.0
+feature_sets:
+  neighbor_core:
+    include_groups: [neighbor_statistics, two_hop, administrative_boundaries]
+  full:
+    include_groups: [all]
+
+outputs:
+  feature_directory: artifacts/spatial_features
+  morphology_directory: artifacts/spatial_features/morphology
+  predictions: artifacts/tables/spatial_feature_predictions.parquet
+  metrics: artifacts/tables/spatial_feature_metrics.csv
+  registry: artifacts/tables/spatial_feature_registry.csv
+  decision: artifacts/spatial_feature_decision.json

@@ -24,6 +24,7 @@ def test_forecast_feature_mart_respects_information_cutoff() -> None:
         "entity_same_type_mean",
         "same_type_minus_entity_mean",
         "national_same_type_mean",
+        "entity_same_family_change_minus_national",
     } <= set(mart)
 
 
@@ -33,7 +34,7 @@ def test_2027_model_is_the_frozen_residual_boosting_specification() -> None:
     )
     assert registry["model_id"] == "hist_gradient_boosting"
     assert registry["model_family"] == "HistGradientBoostingRegressor"
-    assert registry["feature_set"] == "territorial_context"
+    assert registry["feature_set"] == "competition_concurrency"
     assert registry["selection_source"] == "artifacts/tabular_challenger_decision.json"
     assert registry["training_target_years"] == [2015, 2018, 2021, 2024]
     assert registry["maximum_training_target_year"] == 2024
@@ -41,6 +42,8 @@ def test_2027_model_is_the_frozen_residual_boosting_specification() -> None:
     assert registry["hyperparameters"]["max_iter"] == 250
     assert registry["hyperparameters"]["max_leaf_nodes"] == 15
     assert np.isclose(registry["national_shift_correction"], 0.05214965494331881)
+    assert registry["entity_cycle_signal"] == "entity_same_family_change_minus_national"
+    assert registry["entity_cycle_shrinkage"] == -0.5
 
 
 def test_2027_intervals_are_recalibrated_for_territorial_model() -> None:
@@ -51,7 +54,7 @@ def test_2027_intervals_are_recalibrated_for_territorial_model() -> None:
     ab = calibration[calibration["geography_confidence_class"].isin(["A", "B"])]
     cd = calibration[calibration["geography_confidence_class"].isin(["C", "D"])]
     assert set(ab["calibration_model"]) == {"hist_gradient_boosting"}
-    assert set(ab["calibration_feature_group"]) == {"territorial_context"}
+    assert set(ab["calibration_feature_group"]) == {"competition_concurrency"}
     assert set(cd["calibration_model"]) == {"hierarchical_fallback"}
     assert set(cd["calibration_feature_group"]) == {"not_applicable"}
     assert calibration["calibration_target_year"].eq(2021).all()
@@ -77,6 +80,7 @@ def test_section_forecast_covers_snapshot_with_explicit_fallbacks() -> None:
     expected = (
         forecast["forecast_without_national_shift"]
         + forecast["national_shift_correction"]
+        + forecast["entity_cycle_correction"]
     ).clip(0, 1)
     assert np.allclose(forecast["experimental_prediction"], expected)
 
@@ -88,7 +92,8 @@ def test_forecast_decision_names_baseline_and_does_not_claim_2027_mae() -> None:
     assert decision["status"] == "experimental_not_for_public_release"
     assert decision["baseline_model"]["id"] == "lag_same_type_stable_plus_official_lineage"
     assert decision["challenger_model"]["family"] == "HistGradientBoostingRegressor"
-    assert decision["challenger_model"]["feature_group"] == "territorial_context"
+    assert decision["challenger_model"]["feature_group"] == "competition_concurrency"
+    assert decision["challenger_model"]["entity_cycle_shrinkage"] == -0.5
     assert decision["actual_2027_available"] is False
     assert decision["mae_2027_available"] is False
     historical = {row["target_year"]: row for row in decision["historical_mae_comparison"]}

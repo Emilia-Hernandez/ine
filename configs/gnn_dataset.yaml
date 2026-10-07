@@ -1,0 +1,54 @@
+version: 1
+random_seed: 27
+feature_group: territorial_context
+geography_scope: stable_class_A_sections
+target_years: [2015, 2018, 2021, 2024]
+evaluation_years: [2018, 2021, 2024]
+validation_entity_ids: ["04", "14", "20", "26", "31"]
+inputs:
+  feature_mart: artifacts/tables/feature_ablation_mart.parquet
+  temporal_graph_directory: artifacts/graphs/temporal
+outputs:
+  directory: artifacts/gnn_dataset
+  metadata: gnn_dataset_metadata.json
+  fold_preprocessing: gnn_fold_preprocessing.npz
+categorical_levels:
+  entity_id:
+    - "01"
+    - "02"
+    - "03"
+    - "04"
+    - "05"
+    - "06"
+    - "07"
+    - "08"
+    - "09"
+    - "10"
+    - "11"
+    - "12"
+    - "13"
+    - "14"
+    - "15"
+    - "16"
+    - "17"
+    - "18"
+    - "19"
+    - "20"
+    - "21"
+    - "22"
+    - "23"
+    - "24"
+    - "25"
+    - "26"
+    - "27"
+    - "28"
+    - "29"
+    - "30"
+    - "31"
+    - "32"
+  election_family: [midterm, presidential]
+  geography_unit_type:
+    - stable_section_type_M
+    - stable_section_type_R
+    - stable_section_type_U
+    - stable_section_type_unknown

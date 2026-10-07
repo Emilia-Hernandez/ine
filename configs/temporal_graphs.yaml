@@ -1,0 +1,82 @@
+version: 1
+retrieved_on: "2026-10-06"
+geometry_policy:
+  precision_grid_m: 0.1
+  minimum_shared_boundary_m: 1.0
+  point_contacts_are_neighbors: false
+  island_policy: nearest_polygon_same_entity
+  self_loops_in_export: false
+model_universe:
+  table: artifacts/tables/provisional_section_year_totals.parquet
+  year_column: election_year
+  key_column: section_key_observed
+outputs:
+  directory: artifacts/graphs/temporal
+  source_manifest: data/manifests/temporal_graph_source_manifest.csv
+snapshots:
+  2015:
+    election_date: "2015-06-07"
+    authority: Instituto Nacional Electoral
+    title: Capa nacional de secciones electorales, corte previo a 2015
+    download_url: https://pautas.ine.mx/transparencia/mapas/cob_2015/SECCION.zip
+    local_archive: data/raw/public_ine/ine_secciones_2015_election.zip
+    archive_sha256: c8aa6f6d9b8821121e39799ffcb1fa3d1f4ad0d1ef049257e189fe7013b96751
+    archive_bytes: 95984246
+    archive_member: SECCION.shp
+    metadata_member: SECCION.shp.xml
+    geometry_created_on: "2014-12-09"
+    dbf_last_update: "2015-01-06"
+    expected_feature_count: 68364
+    expected_wkb_ring_repairs: 3
+    expected_make_valid_repairs: 0
+    minimum_key_coverage: 1.0
+  2018:
+    election_date: "2018-07-01"
+    authority: Instituto Nacional Electoral
+    title: Capa nacional de secciones electorales, corte previo a 2018
+    download_url: https://pautas.ine.mx/transparencia/mapas/cob_2018/SECCION.zip
+    local_archive: data/raw/public_ine/ine_secciones_2018_election.zip
+    archive_sha256: 08c75206239b263204eabd13b1c4dfb6eb8c138e2181b15f71eb779e619c6d13
+    archive_bytes: 96692031
+    archive_member: SECCION.shp
+    metadata_member: SECCION.shp.xml
+    geometry_created_on: "2017-10-02"
+    dbf_last_update: "2017-10-02"
+    expected_feature_count: 68364
+    expected_wkb_ring_repairs: 10
+    expected_make_valid_repairs: 1
+    minimum_key_coverage: 0.999
+  2021:
+    election_date: "2021-06-06"
+    authority: Instituto Nacional Electoral
+    title: Capa nacional de secciones electorales, corte previo a 2021
+    landing_url: https://pautas.ine.mx/transparencia/mapas/index_2021.html
+    download_url: https://pautas.ine.mx/transparencia/mapas/cob_2020/SECCION.zip
+    local_archive: data/raw/public_ine/ine_secciones_2021_election.zip
+    archive_sha256: 4f39a2b87d66876cf551b3cfdad4fbf864f19330d6b7b823c2d25f22a40343b1
+    archive_bytes: 113983386
+    archive_member: SECCION.shp
+    metadata_member: SECCION.shp.xml
+    geometry_created_on: "2020-06-11"
+    dbf_last_update: "2020-06-11"
+    expected_feature_count: 68436
+    expected_wkb_ring_repairs: 10
+    expected_make_valid_repairs: 1
+    minimum_key_coverage: 0.98
+  2024:
+    election_date: "2024-06-02"
+    authority: Instituto Nacional Electoral
+    title: Capa nacional de secciones electorales, corte previo a 2024
+    landing_url: https://pautas.ine.mx/transparencia/mapas/index_2025.html
+    download_url: https://pautas.ine.mx/transparencia/mapas/cob_2024/SECCION.zip
+    local_archive: data/raw/public_ine/ine_secciones_2025_portal.zip
+    archive_sha256: 7098010b3c58d708afc8c0f166552fc3713699c4f39508f6fe42be5f9069c686
+    archive_bytes: 102602388
+    archive_member: SECCION/SECCION.shp
+    metadata_member: SECCION/SECCION.shp.xml
+    geometry_created_on: "2024-05-09"
+    dbf_last_update: "2024-05-09"
+    expected_feature_count: 70753
+    expected_wkb_ring_repairs: 0
+    expected_make_valid_repairs: 0
+    minimum_key_coverage: 1.0

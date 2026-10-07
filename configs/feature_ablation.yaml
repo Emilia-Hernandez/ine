@@ -5,7 +5,7 @@ random_seed: 27
 primary_target_year: 2021
 strict_targets: [2018, 2021, 2024]
 eceg_allowed_targets: [2024]
-current_feature_group: electoral_demographics
+current_feature_group: competition_concurrency
 maximum_other_fold_weighted_mae_deterioration: 0.005
 minimum_eceg_2024_improvement_to_promote: 0.001
 
@@ -66,6 +66,49 @@ feature_groups:
     extends: electoral_demographics
     include_group: territorial_context
     numeric: []
+    categorical: []
+    availability: strict_all_targets
+
+  competition_context:
+    extends: territorial_context
+    numeric:
+      - prior_competition_margin
+      - prior_winner_vote_share
+      - prior_runner_up_vote_share
+      - prior_competition_hhi
+      - prior_effective_number_options
+      - prior_top_two_vote_share
+      - prior_competitive_option_count
+      - prior_competition_coverage
+    categorical: [competition_ballot]
+    availability: strict_all_targets
+
+  concurrency_context:
+    extends: territorial_context
+    numeric:
+      - local_election_concurrent
+      - local_executive_on_ballot
+      - local_congress_on_ballot
+      - municipal_on_ballot
+      - local_ballot_type_count
+    categorical: [concurrency_profile]
+    availability: strict_all_targets
+
+  competition_concurrency:
+    extends: competition_context
+    include_group: concurrency_context
+    numeric: []
+    categorical: []
+    availability: strict_all_targets
+
+  entity_cycle_context:
+    extends: competition_concurrency
+    numeric:
+      - entity_same_family_turnout_recent
+      - entity_same_family_turnout_previous
+      - entity_same_family_turnout_change
+      - national_same_family_turnout_change
+      - entity_same_family_change_minus_national
     categorical: []
     availability: strict_all_targets
 

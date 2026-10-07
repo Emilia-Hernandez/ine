@@ -4,7 +4,7 @@ Actualizado: 2026-10-06.
 
 ## Objetivo
 
-Comprobar si otra familia de árboles mejora al `HistGradientBoostingRegressor` actual. La comparación cambia sólo el algoritmo: conserva las features `territorial_context`, los folds temporales 2018/2021/2024, el baseline, los pesos, la contracción residual 0.25 y la corrección nacional.
+Comprobar si otra familia de árboles mejora al `HistGradientBoostingRegressor` actual. La comparación cambia sólo el algoritmo: conserva las features `competition_concurrency`, los folds temporales 2018/2021/2024, el baseline, los pesos, la contracción residual 0.25 y la corrección nacional.
 
 ## Qué predice cada modelo
 

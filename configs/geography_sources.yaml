@@ -1,8 +1,8 @@
 version: 1
 checked_on: "2026-10-05"
-status: request_required
+status: spatial_adjacency_available_historical_crosswalk_request_required
 crosswalk_downloaded: false
-geometry_downloaded: false
+geometry_downloaded: true
 sources:
   - id: ine_specialized_cartography
     url: https://www.ine.mx/voto-y-elecciones/especializados/
@@ -21,6 +21,12 @@ sources:
     url: https://ine.mx/transparencia/datos-abiertos/visualizacion-datos/conteos-censales-participacion/
     authority: Instituto Nacional Electoral
     evidence: La plataforma declara cartografia con corte a mayo de 2023.
+  - id: ine_sections_2024_05_09
+    url: https://pautas.ine.mx/transparencia/mapas/cob_2024/SECCION.zip
+    authority: Instituto Nacional Electoral
+    evidence: >-
+      Capa nacional oficial con 70,753 poligonos validos, metadatos internos del 9 de mayo
+      de 2024 y cobertura exacta de las 70,751 secciones observadas en CCPC 2024.
 decision: >-
-  No aplicar equivalencias geometricas ni construir una llave longitudinal definitiva hasta
-  recibir y validar productos oficiales compatibles con cada eleccion.
+  La geometria 2024 se usa para vecindad espacial del corte 2024. No se aplica como equivalencia
+  historica ni como llave longitudinal para elecciones anteriores.

@@ -41,7 +41,9 @@ elections:
     filename: "DatosAbiertos_DECEyEC_ConteosCensales2024.zip"
 
 cartography:
-  platform_reference_date: "2023-05"
-  portal_url: "https://www.ine.mx/productos-geografia-electoral-descargables/"
-  status: "identified_not_downloaded"
-  warning: "El corte de la plataforma no prueba que cada ZIP esté armonizado al mismo marco."
+  snapshot_date: "2024-05-09"
+  portal_url: "https://pautas.ine.mx/transparencia/mapas/index_2025.html"
+  download_url: "https://pautas.ine.mx/transparencia/mapas/cob_2024/SECCION.zip"
+  status: "downloaded_and_validated_for_2024_spatial_adjacency"
+  config: "configs/spatial_graph.yaml"
+  warning: "El snapshot 2024 no debe aplicarse retrospectivamente como topología histórica."

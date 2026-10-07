@@ -1,6 +1,6 @@
 # Método de la proyección experimental 2027 actualizada
 
-Actualizado: 2026-10-06.
+Actualizado: 2026-10-07.
 
 ## Objetivo
 
@@ -9,8 +9,9 @@ Construir la primera proyección de participación 2027 completamente trazable, 
 1. baseline histórico;
 2. corrección aprendida por el modelo;
 3. corrección nacional por familia electoral;
-4. intervalo empírico;
-5. procedencia y confianza territorial.
+4. corrección estatal por reversión del ciclo comparable;
+5. intervalo empírico;
+6. procedencia y confianza territorial.
 
 No existe todavía resultado, lista nominal ni marco seccional 2027. Por eso la proyección usa las 70,751 secciones del snapshot 2024 y se etiqueta experimental.
 
@@ -53,7 +54,7 @@ Hiperparámetros congelados:
 - regularización L2 de 1.0;
 - semilla 27.
 
-El grupo seleccionado es `territorial_context`. Incluye participaciones rezagadas, cambios y tendencia histórica, volatilidad, tamaño de lista nominal, cobertura de registros y clase territorial. Además incorpora promedios y dispersiones rezagados por entidad y nación, la diferencia de cada unidad frente a esos referentes y el tipo de unidad geográfica. No usa sexo/edad ni ECEG en el predictor puntual porque la ablación no mostró una mejora consistente.
+El grupo seleccionado es `competition_concurrency`. Incluye participaciones rezagadas, cambios y tendencia histórica, volatilidad, tamaño de lista nominal, cobertura de registros y clase territorial. Incorpora promedios y dispersiones rezagados por entidad y nación, competencia de la elección federal previa de la misma familia y el calendario local concurrente conocido antes de la jornada. No usa resultados de la elección objetivo, sexo/edad ni ECEG en el predictor puntual.
 
 Los faltantes numéricos usan mediana aprendida en entrenamiento; entidad, familia y tipo geográfico se codifican como categorías. El algoritmo fue retenido después de compararlo con XGBoost, LightGBM y Extra Trees bajo los mismos folds y variables.
 
@@ -61,13 +62,13 @@ Los faltantes numéricos usan mediana aprendida en entrenamiento; entidad, famil
 
 Se entrena con targets 2015, 2018, 2021 y 2024. Todas sus variables provienen de elecciones anteriores a cada target. Para 2027, las variables terminan en 2024 y el baseline de misma familia corresponde a 2021.
 
-Después del boosting se suma +5.21 pp, el cambio nacional intermedio observado entre 2015 y 2021. Este ajuste queda en una columna separada y se recorta el resultado final a `[0,1]`.
+Después del boosting se suma +5.21 pp, el cambio nacional intermedio observado entre 2015 y 2021. A continuación se aplica una corrección estatal explícita con shrinkage −0.50 sobre la diferencia entre el cambio estatal 2015–2021 y el cambio nacional del mismo periodo. El signo negativo representa reversión parcial a la media. Ambos ajustes quedan en columnas separadas y el resultado final se recorta a `[0,1]`.
 
 ## Territorio e incertidumbre
 
-- A/B: boosting residual más corrección nacional;
-- C/D: respaldo jerárquico más corrección nacional;
-- intervalos A/B: errores fuera de tiempo 2021 del HistGradientBoosting con contexto territorial, por clase;
+- A/B: boosting residual más corrección nacional y corrección estatal;
+- C/D: respaldo jerárquico más las mismas correcciones nacional y estatal;
+- intervalos A/B: errores fuera de tiempo 2021 del HistGradientBoosting con la corrección estatal promovida, por clase;
 - intervalos C/D: errores del respaldo jerárquico 2021; C usa el pool C+D porque sólo tiene 46 casos calibrables.
 
 La geografía es la observada en 2024 y los linajes públicos terminan en 2022. Los intervalos se recalculan porque cambiar las features también cambia los errores del modelo. Son intervalos seccionales; promediar sus límites no crea un intervalo estadístico para el total nacional.

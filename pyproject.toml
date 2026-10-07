@@ -5,6 +5,7 @@ description = "Auditoría reproducible de los Conteos Censales de Participación
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "duckdb>=1.2,<2",
+  "geopandas>=1.1,<2",
   "ipykernel>=6.29,<7",
   "lightgbm>=4,<5",
   "nbclient>=0.10,<1",
@@ -17,6 +18,7 @@ dependencies = [
   "pyyaml>=6,<7",
   "requests>=2.32,<3",
   "scikit-learn>=1.7,<2",
+  "torch>=2.7,<3",
   "xgboost>=2,<4",
 ]
 

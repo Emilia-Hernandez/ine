@@ -1,0 +1,43 @@
+version: 1
+snapshot_id: ine_sections_2024_05_09
+target_election_year: 2024
+target_election_date: "2024-06-02"
+source:
+  authority: Instituto Nacional Electoral
+  title: Capa nacional de secciones electorales
+  landing_url: https://pautas.ine.mx/transparencia/mapas/index_2025.html
+  download_url: https://pautas.ine.mx/transparencia/mapas/cob_2024/SECCION.zip
+  local_archive: data/raw/public_ine/ine_secciones_2025_portal.zip
+  archive_sha256: 7098010b3c58d708afc8c0f166552fc3713699c4f39508f6fe42be5f9069c686
+  archive_bytes: 102602388
+  archive_member: SECCION/SECCION.shp
+  metadata_member: SECCION/SECCION.shp.xml
+  geometry_created_on: "2024-05-09"
+  dbf_last_update: "2024-05-09"
+  expected_feature_count: 70753
+  expected_crs_name: North_America_Lambert_Conformal_Conic
+  coordinate_unit: metre
+model_universe:
+  table: artifacts/tables/provisional_section_year_totals.parquet
+  year_column: election_year
+  year: 2024
+  key_column: section_key_observed
+  expected_nodes: 70751
+topology:
+  definition: rook_contiguity
+  precision_grid_m: 0.1
+  minimum_shared_boundary_m: 1.0
+  point_contacts_are_neighbors: false
+  self_loops_in_export: false
+  island_policy: nearest_polygon_same_entity
+  island_neighbors: 1
+outputs:
+  directory: artifacts/graphs
+  nodes: section_graph_2024_nodes.parquet
+  contacts: section_graph_2024_contacts.parquet
+  edges: section_graph_2024_edges.parquet
+  excluded_source_nodes: section_graph_2024_excluded_source_nodes.csv
+  adjacency: section_graph_2024_adjacency.npz
+  edge_index: section_graph_2024_edge_index.npz
+  metadata: section_graph_2024_metadata.json
+  source_manifest: data/manifests/spatial_graph_source_manifest.csv

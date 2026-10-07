@@ -36,6 +36,10 @@ def test_eceg_ablation_is_restricted_to_2024() -> None:
         "electoral_demographics",
         "territorial_context",
         "demographics_context",
+        "competition_context",
+        "concurrency_context",
+        "competition_concurrency",
+        "entity_cycle_context",
     }
 
 
@@ -60,7 +64,8 @@ def test_ablation_decision_does_not_overclaim_eceg() -> None:
     )
     assert decision["baseline_model"] == "lag_same_type_stable_plus_official_lineage"
     assert decision["model_family_held_constant"].startswith("HistGradientBoostingRegressor")
-    assert decision["best_strict_feature_group"] == "territorial_context"
-    assert decision["strict_feature_group_promoted"] is True
+    assert decision["best_strict_feature_group"] == "competition_concurrency"
+    assert decision["current_feature_group"] == "competition_concurrency"
+    assert decision["strict_feature_group_promoted"] is False
     assert decision["eceg_promoted"] is False
-    assert decision["selected_feature_group_for_2027"] == "territorial_context"
+    assert decision["selected_feature_group_for_2027"] == "competition_concurrency"

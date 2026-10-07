@@ -1,6 +1,6 @@
 # Fuentes y procedencia
 
-Fecha de comprobación HTTP de la instantánea final: **2026-10-05 UTC**. Notebook/celda: `notebooks/00_setup_sources_download.ipynb` / `download-official-sources`.
+Fecha de comprobación HTTP de la instantánea final: **2026-10-07 UTC**. Notebook/celda: `notebooks/00_setup_sources_download.ipynb` / `download-official-sources`, `scripts/download_electoral_context.py` y `scripts/build_section_graph.py`.
 
 ## Universo
 
@@ -35,11 +35,28 @@ Cada ZIP contiene un TXT de descripción de campos. Los TXT 2009–2021 son idé
 
 ## Cartografía
 
-La página de la plataforma declara cartografía con corte a mayo de 2023. La página oficial de [productos cartográficos especializados](https://www.ine.mx/voto-y-elecciones/especializados/) indica que el Marco Geográfico Seccional y el Catálogo de Secciones se obtienen mediante solicitud de acceso a la información debido a su peso; no ofrece ahí un crosswalk histórico directo.
+El portal oficial de [mapas para pautas del INE](https://pautas.ine.mx/transparencia/mapas/index_2025.html) publica Shapefiles nacionales y enlaza una capa “Sección”. Se descargó el [ZIP oficial](https://pautas.ine.mx/transparencia/mapas/cob_2024/SECCION.zip): 102,602,388 bytes y SHA-256 `7098010b3c58d708afc8c0f166552fc3713699c4f39508f6fe42be5f9069c686`.
 
-El [informe de actividades DERFE del segundo trimestre de 2023](https://repositoriodocumental.ine.mx/xmlui/bitstream/handle/123456789/152317/crfe-5se-2023-07-12-p3-1-informe.pdf) reporta 2,469 municipios y 69,548 secciones en abril, mayo y junio de 2023, además de trabajos de reseccionamiento e integración. La fuente CCPC 2024 contiene 70,751 códigos `entidad:sección`; esa diferencia refuta una equivalencia simple entre el conjunto observado y el corte cartográfico de referencia.
+El DBF y el XML internos registran el 9 de mayo de 2024. La capa tiene 70,753 polígonos válidos en Lambert Conforme Cónica y 70,753 llaves únicas. Cubre las 70,751 llaves `entidad:sección` de CCPC 2024 sin faltantes; `07:2049` y `20:2562` son los dos polígonos que no forman parte del universo estadístico y se excluyen con causa.
 
-Todavía no se descargó ni validó una geometría/crosswalk. El TXT de 2009–2021 documenta `DEF` y `DEL` en marco DERFE 2021; el de 2024 los documenta en marco DERFE 2023; `SECCION` se refiere al año correspondiente. Por ello la compatibilidad cartográfica sigue **pendiente**, no asumida.
+Esta coincidencia habilita vecindad espacial para 2024, no un crosswalk histórico. El TXT de 2009–2021 documenta `DEF` y `DEL` en marco DERFE 2021; el de 2024 los documenta en marco DERFE 2023; `SECCION` se refiere al año correspondiente. Por ello la topología 2024 no se aplica retrospectivamente. La construcción, sus umbrales y excepciones están en `docs/SPATIAL_GRAPH_METHOD.md` y el manifiesto en `data/manifests/spatial_graph_source_manifest.csv`.
+
+### Cortes cartográficos históricos para el GNN
+
+Para evitar usar el snapshot 2024 en backtests anteriores se descargaron también
+las capas oficiales [2015](https://pautas.ine.mx/transparencia/mapas/cob_2015/SECCION.zip),
+[2018](https://pautas.ine.mx/transparencia/mapas/cob_2018/SECCION.zip) y
+[2021](https://pautas.ine.mx/transparencia/mapas/cob_2020/SECCION.zip). Sus
+geometrías fueron creadas el 9 de diciembre de 2014, 2 de octubre de 2017 y 11 de
+junio de 2020, todas antes de su elección objetivo. La página oficial de
+[cartografía 2021](https://pautas.ine.mx/transparencia/mapas/index_2021.html)
+describe la distribución como Shapefiles descargables del Marco Geográfico
+Electoral y señala su vigencia.
+
+El manifiesto `data/manifests/temporal_graph_source_manifest.csv` conserva URL,
+bytes, SHA-256, fechas internas y cobertura de cada corte. La definición de arista,
+las reparaciones geométricas y el contrato temporal están documentados en
+`docs/GNN_DATASET_METHOD.md`.
 
 ## Actualizaciones al Marco Geográfico Electoral
 
@@ -52,3 +69,9 @@ La fuente se usa para linajes de división/fusión y banderas de ambigüedad, no
 Las [Estadísticas Censales a Escalas Geoelectorales 2020](https://www.inegi.org.mx/app/descarga/ficha.html?ag=0&f=csv&tit=540314) se descargaron desde la distribución CSV oficial. El ZIP tiene 20,609,412 bytes y SHA-256 `db357fee6f869ec10c7c996e72d4ab6a339d10b20b8043f63ab5a256339708fe`; contiene 68,806 secciones únicas.
 
 La ficha y los metadatos incluidos declaran identificador `MEX-INEGI.ESD2.01-CPV-2020`, referencia censal 15 de marzo de 2020 y modificación 18 de agosto de 2021. Esta última fecha es posterior a la elección federal de 2021: ECEG no se usa en el gate principal 2021, sólo en una prueba secundaria 2024. No se considera crosswalk histórico. La validación está en `data/manifests/eceg_source_manifest.csv` y la selección de variables en `artifacts/tables/eceg_selected_variable_dictionary.csv`.
+
+## Competencia electoral y concurrencia local
+
+Se incorporaron las bases definitivas por sección del SICEE para diputaciones federales MR 2009, 2015 y 2021, y Presidencia 2012 y 2018. Cada target usa sólo la elección federal previa de la misma familia para competencia. Para medir el ciclo estatal comparable se añadieron también los agregados por entidad de diputaciones 2003 y Presidencia 2006; junto con 2009–2021 permiten formar dos antecedentes de la misma familia sin usar el target. Se excluyen los renglones de voto en el extranjero. Los archivos, URL, tamaño y SHA-256 se registran en `data/manifests/electoral_context_source_manifest.csv`.
+
+Los calendarios locales 2015, 2018, 2021, 2024 y 2027 se codifican por entidad y tipo de cargo en `configs/electoral_context.yaml`. Para 2027 se usa el calendario oficial del proceso 2026–2027 publicado por el INE y conocido antes de la jornada del 6 de junio de 2027.

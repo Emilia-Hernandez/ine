@@ -1,6 +1,6 @@
 version: 1
 objective: compare_tabular_model_families_with_features_and_evaluation_frozen
-feature_group: territorial_context
+feature_group: competition_concurrency
 feature_config: configs/feature_ablation.yaml
 random_seed: 27
 evaluation_targets: [2018, 2021, 2024]

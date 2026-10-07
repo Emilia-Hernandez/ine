@@ -1,0 +1,42 @@
+version: 1
+objective: add_label_free_graph_embedding_to_selected_tabular_model
+random_seed: 27
+evaluation_targets: [2018, 2021, 2024]
+primary_target_year: 2021
+feature_group: territorial_context
+feature_config: configs/feature_ablation.yaml
+gnn_dataset_config: configs/gnn_dataset.yaml
+reference_model_config: configs/tabular_challengers.yaml
+reference_model: hist_gradient_boosting_without_embedding
+candidate_model_prefix: hist_gradient_boosting_plus_graphsage
+baseline_model: lag_same_type_stable_sections
+residual_shrinkage: 0.25
+maximum_other_fold_weighted_mae_deterioration: 0.005
+topologies:
+  rook: edge_index_rook
+  augmented: edge_index_augmented
+
+# El encoder nunca recibe el target. Aprende a reconstruir, con ruido, las
+# variables conocidas a partir de cada nodo y del promedio de sus vecinos.
+encoder:
+  family: graphsage_denoising_autoencoder
+  uses_own_node_features: true
+  hidden_dim: 64
+  embedding_dim: 16
+  input_dropout: 0.15
+  hidden_dropout: 0.10
+  learning_rate: 0.003
+  weight_decay: 0.0001
+  maximum_epochs: 45
+  patience: 7
+  minimum_delta: 0.00001
+  gradient_clip_norm: 5.0
+  torch_threads: 4
+
+outputs:
+  embedding_directory: artifacts/graph_embeddings
+  model_directory: artifacts/models/graph_embedding
+  predictions: artifacts/tables/graph_embedding_predictions.parquet
+  metrics: artifacts/tables/graph_embedding_metrics.csv
+  registry: artifacts/tables/graph_embedding_registry.csv
+  decision: artifacts/graph_embedding_decision.json

@@ -7,6 +7,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from radar27.modeling.electoral_context import add_electoral_context
+from radar27.modeling.entity_cycle_adaptation import corrected_prediction
 from radar27.modeling.feature_enrichment import (
     _resolve_feature_group,
     add_relative_territorial_context,
@@ -66,7 +68,12 @@ def build_forecast_feature_mart(project_root: Path) -> pd.DataFrame:
     )
     forecast = add_relative_territorial_context(forecast)
     forecast["max_electoral_feature_year"] = forecast["lag1_year"]
-    forecast["context_source_max_year"] = forecast["max_electoral_feature_year"]
+    forecast = add_electoral_context(
+        project_root, forecast, membership_year_by_target={target_year: snapshot_year}
+    )
+    forecast["context_source_max_year"] = forecast[
+        "electoral_context_source_max_year"
+    ]
     forecast["geography_snapshot_year"] = snapshot_year
     forecast["geography_evidence_through_year"] = int(
         config["geography_evidence_through_year"]
@@ -143,6 +150,19 @@ def train_and_predict_2027(
     expected = float(forecast_config["national_shift"]["expected_correction"])
     if not np.isclose(national_shift, expected, atol=1e-12):
         raise ValueError("La corrección nacional no coincide con el contrato congelado")
+    entity_adaptation_config = forecast_config["entity_cycle_adaptation"]
+    decision_path = project_root / str(entity_adaptation_config["decision_path"])
+    entity_decision = json.loads(decision_path.read_text(encoding="utf-8"))
+    entity_signal = str(entity_adaptation_config["signal"])
+    entity_shrinkage = float(entity_decision["applied_shrinkage"])
+    expected_entity_shrinkage = float(entity_adaptation_config["expected_shrinkage"])
+    if not entity_decision["promoted_for_2027"]:
+        raise ValueError("La corrección estatal no fue promovida para 2027")
+    if not np.isclose(entity_shrinkage, expected_entity_shrinkage, atol=1e-12):
+        raise ValueError("El shrinkage estatal no coincide con el contrato congelado")
+    if entity_signal not in forecast:
+        raise ValueError(f"Falta la señal estatal requerida: {entity_signal}")
+    entity_correction = entity_shrinkage * forecast[entity_signal].to_numpy(dtype=float)
     result = forecast.copy()
     result["baseline_same_family_prediction"] = result["participation_same_type"]
     result["direct_model_prediction"] = np.clip(direct_prediction, 0.0, 1.0)
@@ -155,8 +175,17 @@ def train_and_predict_2027(
     )
     result["national_shift_correction"] = national_shift
     result["national_shift_source_target_year"] = shift_source
-    result["experimental_prediction_raw"] = result["model_prediction"] + national_shift
-    result["experimental_prediction"] = result["experimental_prediction_raw"].clip(0.0, 1.0)
+    result["entity_cycle_signal"] = result[entity_signal]
+    result["entity_cycle_shrinkage"] = entity_shrinkage
+    result["entity_cycle_correction"] = entity_correction
+    result["experimental_prediction_raw"] = (
+        result["model_prediction"] + national_shift + result["entity_cycle_correction"]
+    )
+    result["experimental_prediction"] = corrected_prediction(
+        result["model_prediction"] + national_shift,
+        result["entity_cycle_signal"],
+        entity_shrinkage,
+    )
     result["experimental_prediction_was_clipped"] = result["experimental_prediction"].ne(
         result["experimental_prediction_raw"]
     )
@@ -181,6 +210,10 @@ def train_and_predict_2027(
         "selection_source": "artifacts/tabular_challenger_decision.json",
         "national_shift_correction": national_shift,
         "national_shift_source_target_year": shift_source,
+        "entity_cycle_signal": entity_signal,
+        "entity_cycle_shrinkage": entity_shrinkage,
+        "entity_cycle_method": entity_adaptation_config["method"],
+        "entity_cycle_selection_source": str(entity_adaptation_config["decision_path"]),
         "geography_snapshot_year": int(forecast_config["geography_snapshot_target_year"]),
         "publication_status": forecast_config["publication_status"],
     }
@@ -199,14 +232,23 @@ def _calibration_radii(project_root: Path) -> pd.DataFrame:
     alpha = 1 - float(config["uncertainty"]["nominal_coverage"])
     selected_model = str(config["uncertainty"]["calibration_model"])
     feature_group = str(config["uncertainty"]["calibration_feature_group"])
-    challenger_predictions = pd.read_parquet(
-        project_root / "artifacts/tables/tabular_challenger_predictions.parquet"
-    )
-    ab = challenger_predictions[
-        challenger_predictions["target_year"].eq(calibration_year)
-        & challenger_predictions["model_id"].eq(selected_model)
-        & challenger_predictions["feature_group"].eq(feature_group)
-    ].copy()
+    if config["entity_cycle_adaptation"]["enabled"]:
+        adaptation_predictions = pd.read_parquet(
+            project_root / "artifacts/tables/entity_cycle_adaptation_predictions.parquet"
+        )
+        ab = adaptation_predictions[
+            adaptation_predictions["target_year"].eq(calibration_year)
+            & adaptation_predictions["feature_group"].eq(feature_group)
+        ].copy()
+    else:
+        challenger_predictions = pd.read_parquet(
+            project_root / "artifacts/tables/tabular_challenger_predictions.parquet"
+        )
+        ab = challenger_predictions[
+            challenger_predictions["target_year"].eq(calibration_year)
+            & challenger_predictions["model_id"].eq(selected_model)
+            & challenger_predictions["feature_group"].eq(feature_group)
+        ].copy()
     if ab.empty:
         raise ValueError("No hay predicciones fuera de tiempo para calibrar A/B 2027")
     ab["absolute_error"] = (ab["prediction"] - ab["actual"]).abs()
@@ -313,11 +355,20 @@ def expand_to_section_forecast(
         "residual_shrinkage",
         "model_prediction",
         "national_shift_correction",
+        "entity_cycle_correction",
         "experimental_prediction",
         "model_id",
     ]
     sections = sections.merge(
         model_units[unit_columns], on="evaluation_unit_id", how="left", validate="many_to_one"
+    )
+    entity_correction = model_units[
+        ["entity_id", "entity_cycle_signal", "entity_cycle_correction"]
+    ].drop_duplicates()
+    if entity_correction["entity_id"].duplicated().any() or len(entity_correction) != 32:
+        raise ValueError("La corrección estatal 2027 no es única por entidad")
+    sections = sections.drop(columns=["entity_cycle_correction"]).merge(
+        entity_correction, on="entity_id", how="left", validate="many_to_one"
     )
     sections = sections.merge(fallback, on="section_key_observed", how="left", validate="one_to_one")
     primary = sections["geography_confidence_class"].isin(["A", "B"])
@@ -332,12 +383,14 @@ def expand_to_section_forecast(
     national_shift = float(model_units["national_shift_correction"].iloc[0])
     sections["national_shift_correction"] = national_shift
     sections["experimental_prediction"] = (
-        sections["forecast_without_national_shift"] + national_shift
+        sections["forecast_without_national_shift"]
+        + national_shift
+        + sections["entity_cycle_correction"]
     ).clip(0.0, 1.0)
     sections["prediction_strategy"] = np.where(
         primary,
-        "residual_boosting_plus_national_shift",
-        "hierarchical_fallback_plus_national_shift",
+        "residual_boosting_plus_national_and_entity_cycle",
+        "hierarchical_fallback_plus_national_and_entity_cycle",
     )
     sections["model_applied"] = primary
     radii = _calibration_radii(project_root)
@@ -408,17 +461,24 @@ def write_forecast_decision(
     config = _load_yaml(project_root / "configs/forecast_2027.yaml")
     frozen = pd.read_csv(project_root / "artifacts/tables/backtest_metrics.csv")
     frozen = frozen[frozen["scenario"].eq("stable_plus_lineage")].set_index("target_year")
-    challenger = pd.read_csv(
-        project_root / "artifacts/tables/tabular_challenger_metrics.csv"
+    entity_decision = json.loads(
+        (
+            project_root
+            / str(config["entity_cycle_adaptation"]["decision_path"])
+        ).read_text(encoding="utf-8")
     )
-    challenger = challenger[
-        challenger["model_id"].eq(config["selected_model"])
-        & challenger["feature_group"].eq(config["selected_feature_group"])
+    entity_metrics = pd.read_csv(
+        project_root / "artifacts/tables/entity_cycle_adaptation_metrics.csv"
+    )
+    entity_metrics = entity_metrics[
+        entity_metrics["entity_cycle_shrinkage"].eq(
+            float(entity_decision["applied_shrinkage"])
+        )
     ].set_index("target_year")
     historical = []
     for year in [2018, 2021, 2024]:
         baseline_mae = float(frozen.loc[year, "identified_weighted_mae"])
-        corrected_mae = float(challenger.loc[year, "identified_weighted_mae"])
+        corrected_mae = float(entity_metrics.loc[year, "identified_weighted_mae"])
         historical.append(
             {
                 "target_year": year,
@@ -427,6 +487,7 @@ def write_forecast_decision(
                 "corrected_boosting_weighted_mae": corrected_mae,
                 "mae_change_vs_baseline": corrected_mae - baseline_mae,
                 "feature_group": config["selected_feature_group"],
+                "entity_cycle_shrinkage": float(entity_decision["applied_shrinkage"]),
             }
         )
     overall = summary[
@@ -447,11 +508,14 @@ def write_forecast_decision(
             "family": registry["model_family"],
             "description": (
                 "Histogram gradient-boosted trees predict the residual over the same-family "
-                "baseline using historical and relative entity/national context; 25% of that "
-                "residual is applied, followed by the separately audited national shift."
+                "baseline using historical context, prior federal competition, and the known "
+                "2027 local-election schedule; 25% of that residual is applied, followed by "
+                "the separately audited national shift and state-cycle mean reversion."
             ),
             "hyperparameters": registry["hyperparameters"],
             "feature_group": registry["feature_set"],
+            "entity_cycle_shrinkage": registry["entity_cycle_shrinkage"],
+            "entity_cycle_signal": registry["entity_cycle_signal"],
         },
         "historical_mae_comparison": historical,
         "forecast_units_ab": len(model_units),

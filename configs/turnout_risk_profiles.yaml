@@ -1,0 +1,113 @@
+version: 1
+objective: identify_and_describe_sections_at_risk_of_turnout_decline
+target_year: 2027
+primary_decline_threshold: 0.02
+decline_thresholds: [0.0, 0.02, 0.05]
+strict_evaluation_targets: [2018, 2021, 2024]
+training_target_years: [2015, 2018, 2021, 2024]
+candidate_feature_groups:
+  - competition_concurrency
+  - entity_cycle_context
+feature_config: configs/feature_ablation.yaml
+random_seed: 27
+
+risk_classifier:
+  family: hist_gradient_boosting
+  learning_rate: 0.05
+  max_iter: 250
+  max_leaf_nodes: 15
+  min_samples_leaf: 40
+  l2_regularization: 1.0
+  calibration: expanding_window_weighted_isotonic
+  final_calibration_target_year: 2021
+
+empirical_bayes:
+  prior_strength_identified_records: 100.0
+  sensitivity_strengths: [0.0, 50.0, 100.0, 200.0]
+
+ranking:
+  high_risk_quantile: 0.80
+  high_volume_quantile: 0.80
+  top_share_for_validation: 0.20
+
+profiles:
+  candidate_clusters: [3, 4, 5, 6]
+  high_risk_quantile: 0.80
+  stability_repeats: 5
+  subsample_fraction: 0.80
+  minimum_mean_adjusted_rand: 0.70
+  silhouette_sample_size: 10000
+  features:
+    - overall_turnout_2024
+    - female_minus_male_turnout_2024
+    - age_18_29_minus_overall_2024
+    - age_30_44_minus_overall_2024
+    - age_45_64_minus_overall_2024
+    - age_65_plus_minus_overall_2024
+    - female_turnout_change_2015_2021
+    - male_turnout_change_2015_2021
+    - age_18_29_turnout_change_2015_2021
+    - age_30_44_turnout_change_2015_2021
+    - age_45_64_turnout_change_2015_2021
+    - age_65_plus_turnout_change_2015_2021
+    - female_share_2024
+    - age_18_29_share_2024
+    - age_30_44_share_2024
+    - age_45_64_share_2024
+    - age_65_plus_share_2024
+
+archetypes:
+  active_percentile: 80.0
+  sensitivity_percentiles: [75.0, 80.0, 85.0]
+  definitions:
+    low_youth_turnout: youth_turnout_deficit
+    male_turnout_gap: female_minus_male_turnout_2024
+    female_turnout_gap: male_minus_female_turnout_2024
+    historical_deterioration: negative_mean_group_change_2015_2021
+    low_general_turnout: negative_overall_turnout_2024
+    high_historical_volatility: participation_historical_std
+
+bootstrap_uncertainty:
+  repetitions: 20
+  cluster: entity_id
+  method: bayesian_exponential_cluster_weights
+  lower_quantile: 0.10
+  upper_quantile: 0.90
+
+eceg_descriptors:
+  reference_year: 2020
+  fields:
+    - eceg_female_share
+    - eceg_adult_share
+    - eceg_older_share
+    - eceg_illiteracy_share_15_plus
+    - eceg_economic_activity_share_12_plus
+    - eceg_disability_share
+    - eceg_indigenous_language_share_3_plus
+    - eceg_internet_share_dwellings
+    - eceg_average_schooling
+
+outputs:
+  report: artifacts/reports/turnout_risk_profiles_2027.html
+  section_file: artifacts/tables/section_risk_profiles_2027.parquet
+  section_csv: artifacts/tables/section_risk_profiles_2027.csv
+  model_unit_file: artifacts/tables/model_unit_risk_2027.parquet
+  historical_predictions: artifacts/tables/turnout_decline_risk_backtest_predictions.parquet
+  risk_metrics: artifacts/tables/turnout_decline_risk_metrics.csv
+  calibration: artifacts/tables/turnout_decline_calibration.csv
+  decomposition: artifacts/tables/historical_subgroup_decomposition.parquet
+  decomposition_summary: artifacts/tables/historical_subgroup_decomposition_summary.csv
+  decomposition_sensitivity: artifacts/tables/historical_subgroup_decomposition_sensitivity.csv
+  profile_validation: artifacts/tables/turnout_profile_validation.csv
+  profile_summary: artifacts/tables/turnout_profile_summary.csv
+  archetype_summary: artifacts/tables/turnout_archetype_summary_2027.csv
+  archetype_backtest: artifacts/tables/turnout_archetype_backtest.csv
+  archetype_backtest_summary: artifacts/tables/turnout_archetype_backtest_summary.csv
+  risk_uncertainty: artifacts/tables/turnout_risk_bootstrap_uncertainty_2027.parquet
+  bootstrap_registry: artifacts/turnout_risk_bootstrap_registry.json
+  eceg_summary: artifacts/tables/turnout_archetype_eceg_summary.csv
+  eceg_coverage: artifacts/tables/turnout_profile_eceg_coverage.csv
+  municipality_summary: artifacts/tables/municipality_risk_summary_2027.csv
+  entity_summary: artifacts/tables/entity_risk_summary_2027.csv
+  dictionary: artifacts/tables/turnout_risk_data_dictionary.csv
+  decision: artifacts/turnout_risk_profile_decision.json

@@ -1,0 +1,57 @@
+version: 1
+objective: compare_midterm_specific_learning_with_presidential_auxiliary_transfer
+random_seed: 27
+evaluation_target: 2021
+target_family: midterm
+feature_group: territorial_context
+feature_config: configs/feature_ablation.yaml
+reference_model_config: configs/tabular_challengers.yaml
+reference_model_spec: hist_gradient_boosting
+residual_shrinkage: 0.25
+shared_head_weight: 0.5
+specialist_head_weight: 0.5
+bootstrap_entity_repetitions: 2000
+
+variants:
+  shared_all_elections:
+    label: Current shared model
+    training_scope: all_prior_elections
+    cycle_features: false
+  midterm_only:
+    label: Midterm-only model
+    training_scope: prior_midterms_only
+    cycle_features: false
+  midterm_transfer_two_head:
+    label: Shared plus midterm specialist
+    training_scope: shared_all_plus_midterm_specialist
+    cycle_features: true
+
+cycle_features:
+  raw:
+    - latest_midterm_participation
+    - previous_midterm_participation
+    - latest_presidential_participation
+    - previous_presidential_participation
+    - latest_midterm_minus_latest_presidential
+    - latest_completed_presidential_to_midterm_change
+    - latest_completed_midterm_to_presidential_change
+    - midterm_change_latest
+    - presidential_change_latest
+    - midterm_history_mean
+    - midterm_history_std
+    - presidential_history_mean
+    - presidential_history_std
+    - years_since_latest_midterm
+    - years_since_latest_presidential
+  territorial_sources:
+    - latest_midterm_minus_latest_presidential
+    - latest_completed_presidential_to_midterm_change
+    - latest_completed_midterm_to_presidential_change
+    - midterm_change_latest
+
+outputs:
+  mart: artifacts/tables/midterm_cycle_mart.parquet
+  predictions: artifacts/tables/midterm_transfer_predictions.parquet
+  metrics: artifacts/tables/midterm_transfer_metrics.csv
+  registry: artifacts/tables/midterm_transfer_registry.csv
+  decision: artifacts/midterm_transfer_decision.json

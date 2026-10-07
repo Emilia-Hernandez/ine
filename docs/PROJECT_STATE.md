@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-10-06.
+Actualizado: 2026-10-07.
 
 Ejecución base combinada: `artifacts/runs/20261005T222756Z-phase1` (`success`; notebooks 00–01). Limpieza: `artifacts/runs/20261005T223526Z-data-foundation` (`success`; notebook 02). Linajes/evaluación: `artifacts/runs/20261005T225638Z-public-lineage-evaluation` (`success`; notebooks 03–04). Feature mart/modelos: `artifacts/runs/20261006T032315Z-feature-model-evaluation` (`success`; notebook 05). Incertidumbre/espacio: `artifacts/runs/20261006T145041Z-radar27-pipeline` (`success`; notebook 06). Adaptación de calibración: `artifacts/runs/20261006T155852Z-radar27-pipeline` (`success`; notebook 07). Proyección experimental 2027: `artifacts/runs/20261006T161557Z-radar27-pipeline` (`success`; notebook 08). Ablación de variables: `artifacts/runs/20261006T163019Z-radar27-pipeline` (`success`; notebook 09).
 
@@ -38,11 +38,27 @@ Ejecución base combinada: `artifacts/runs/20261005T222756Z-phase1` (`success`; 
 - feature mart operacional 2027 construido con corte electoral máximo 2024;
 - boosting residual reentrenado con 2015–2024 y especificación congelada;
 - 70,751 secciones del snapshot 2024 proyectadas: 65,095 con modelo A/B y 5,656 con respaldo C/D;
-- participación experimental ponderada de 57.06%, etiquetada no publicable.
-- seis grupos de features comparados con el mismo boosting y los mismos folds;
-- contexto territorial promovido: MAE 8.10 pp en 2021 y mejora frente al conjunto actual en los tres folds;
+- participación experimental ponderada de 57.31%, etiquetada no publicable.
+- nueve grupos de features comparados con el mismo boosting y los mismos folds;
+- competencia previa + concurrencia local promovidas: MAE 7.81 pp en 2021;
+- cambio estatal de la misma familia evaluado como feature y no promovido;
+- corrección estatal explícita de reversión a la media promovida: shrinkage −0.50 y MAE 7.35 pp en 2021;
 - ECEG no promovido al predictor puntual: mejora de sólo 0.025 pp en 2024;
 - sexo/edad y ECEG conservados para segmentación, interpretación y escenarios.
+- grafos contemporáneos 2015/2018/2021/2024 construidos desde capas oficiales
+  previas a cada elección, sin trasladar retrospectivamente la topología 2024;
+- dataset GNN temporal construido para secciones estables A, con 22 variables
+  numéricas, 38 indicadores categóricos, máscaras espaciales y preprocesamiento por fold.
+- embedding GraphSAGE auto-supervisado evaluado sólo como señal adicional del
+  HistGradientBoosting; mejora 2024, pero no se promueve porque deteriora 2021.
+- embedding exclusivamente vecinal evaluado: reduce el deterioro 2021 a 0.007 pp y
+  mejora 2024, pero no se promueve porque empeora 2018 en 0.180 pp.
+- `neighbor_core` espacial explícito promovido como challenger estable A: mejora el
+  MAE 0.037, 0.049 y 0.030 pp en 2018, 2021 y 2024, respectivamente.
+- grafo de similitud sociodemográfica A+B construido sin outcome con aristas mutuas
+  `k=8/16`; aproximadamente 88.5% de sus conexiones cruzan entidades;
+- embedding sociodemográfico `neighbor-only` no promovido: frente al modelo actual,
+  cambia el MAE en +0.118 pp en 2018, +0.008 pp en 2021 y −0.039 pp en 2024.
 
 ## Archivos clave
 
@@ -137,6 +153,28 @@ Ejecución base combinada: `artifacts/runs/20261005T222756Z-phase1` (`success`; 
 - `artifacts/dense_neural_decision.json`
 - `docs/DENSE_NEURAL_METHOD.md`
 - `docs/DENSE_NEURAL_RESULTS.md`
+- `configs/temporal_graphs.yaml`
+- `configs/gnn_dataset.yaml`
+- `data/manifests/temporal_graph_source_manifest.csv`
+- `scripts/build_gnn_dataset.py`
+- `artifacts/gnn_dataset/gnn_dataset_metadata.json`
+- `docs/GNN_DATASET_METHOD.md`
+- `configs/graph_embedding_challenger.yaml`
+- `scripts/run_graph_embedding_challenger.py`
+- `artifacts/tables/graph_embedding_metrics.csv`
+- `artifacts/tables/graph_embedding_registry.csv`
+- `artifacts/graph_embedding_decision.json`
+- `docs/GRAPH_EMBEDDING_CHALLENGER.md`
+- `configs/neighbor_only_embedding_challenger.yaml`
+- `scripts/run_neighbor_only_embedding_challenger.py`
+- `artifacts/tables/neighbor_only_embedding_metrics.csv`
+- `artifacts/neighbor_only_embedding_decision.json`
+- `docs/NEIGHBOR_ONLY_EMBEDDING_CHALLENGER.md`
+- `configs/spatial_feature_challenger.yaml`
+- `scripts/run_spatial_feature_challenger.py`
+- `artifacts/tables/spatial_feature_metrics.csv`
+- `artifacts/spatial_feature_decision.json`
+- `docs/SPATIAL_FEATURE_CHALLENGER.md`
 
 ## Comandos ejecutados
 
@@ -154,6 +192,11 @@ uv run python scripts/run_notebooks.py --only feature_ablation --timeout 1800
 uv run python scripts/run_notebooks.py --only tabular_challengers --timeout 1800
 uv run python scripts/run_notebooks.py --only forecast_2027_experimental --timeout 1800
 uv run python scripts/run_notebooks.py --only dense_neural_challenger --timeout 1800
+uv run python scripts/build_gnn_dataset.py --download
+uv run python scripts/run_graph_embedding_challenger.py
+uv run python scripts/run_neighbor_only_embedding_challenger.py
+uv run python scripts/run_spatial_feature_challenger.py
+uv run python scripts/run_turnout_risk_profiles.py
 uv run pytest -q
 ```
 
@@ -168,11 +211,29 @@ uv run pytest -q
 - Agregado sección–año por código observado: **construido, provisional**.
 - Panel longitudinal de evaluación: **construido** con clases A/B/C/D; el panel de producción 2027 sigue pendiente.
 - Target de evaluación: **congelado** como `SV/(SV+NV)`; target futuro 2027 aún no observable.
-- Modelo 2027: **actualizado como experimento** con contexto territorial sobre snapshot 2024; no aprobado para publicación ni denominado modelo final oficial.
-- Features seleccionadas para la siguiente iteración: **historia + contexto territorial**; ECEG permanece fuera del predictor puntual.
+- Modelo 2027: **actualizado como experimento** con competencia previa y concurrencia local sobre snapshot 2024; no aprobado para publicación ni denominado modelo final oficial.
+- Perfiles de riesgo 2027: **implementados para entrega analítica** en 70,751 secciones, con ranking separado por probabilidad, magnitud y volumen; A/B usan conteos directos por edad/sexo y C/D referencias estatales etiquetadas.
+- Clasificador de caída ≥2 pp: **útil en el análogo intermedio 2021, no robusto entre regímenes**; ROC AUC ponderada 0.747 en 2021 y 0.423 en la sensibilidad presidencial 2024. La calibración final usa 2021 y conserva advertencia explícita.
+- Segmentación: **tres perfiles exploratorios estables pero poco separados** (ARI 0.932, silhouette 0.170); no deben tratarse como poblaciones objetivo naturales.
+- Arquetipos: **seis dimensiones continuas y superpuestas promovidas como salida principal**; sólo la brecha desfavorable a hombres conserva lift positivo y AUC >0.5 en 2018, 2021 y 2024.
+- Incertidumbre de ranking: **20 réplicas bootstrap por entidad**; 9,875 secciones son alto riesgo robusto y 7,674 son sensibles al remuestreo. No mide cambio de régimen electoral.
+- ECEG 2020: **añadido sólo como descriptor de perfiles**, con procedencia explícita y sin entrar al clasificador de riesgo.
+- Features seleccionadas: **historia + contexto territorial + competencia + concurrencia**; ECEG permanece fuera del predictor puntual.
 - Familia tabular seleccionada: **HistGradientBoosting residual**; XGBoost quedó casi empatado, pero no ganó el gate 2021.
 - Red neuronal densa: **evaluada y no promovida**; empeoró 2021 y falló robustez en 2018.
-- Crosswalk público: linajes AMGE implementados; geometrías completas no son necesarias para este baseline.
+- Grafo espacial 2024: **construido** con 70,751 nodos, cobertura completa y 201,288 aristas auditables.
+- Grafos electorales 2015–2024: **construidos** con corte cartográfico contemporáneo,
+  controles de integridad y reparación geométrica explícita.
+- Dataset para GNN: **construido**; listo para comparar Rook estricto y topología
+  aumentada bajo los folds temporales congelados.
+- Embedding como variable adicional: **evaluado y no promovido**; GraphSAGE Rook
+  cambia el MAE frente al árbol sin embedding en +0.024, +0.132 y −0.035 pp para
+  2018, 2021 y 2024.
+- Embedding sólo de vecinos: **evaluado y no promovido**; cambia el MAE en +0.180,
+  +0.007 y −0.013 pp para 2018, 2021 y 2024.
+- Variables espaciales explícitas `neighbor_core`: **promovidas para la siguiente
+  iteración estable A**; reducen MAE en los tres folds sin aristas sintéticas.
+- Crosswalk público: linajes AMGE implementados; sigue pendiente ampliar el crosswalk histórico.
 - Linajes públicos AMGE: **implementados hasta 2022**.
 - Baseline temporal: **evaluado**; A+B aprobado como muestra principal.
 
@@ -181,8 +242,12 @@ uv run pytest -q
 1. Incorporar relaciones públicas aprobadas durante 2023 o conservar 2024 como evidencia parcial.
 2. Resolver vacíos de `DEF`/`DEL` y edades >100 sin imputación automática.
 3. Contrastar agregados contra el dashboard con filtros/universo idénticos.
-4. Obtener geometrías/adyacencias actualizadas antes de embeddings espaciales o GNN; ampliar evidencia temporal antes de publicar incertidumbre 2027.
+4. La cobertura cartográfica histórica no es total en 2018 (99.93%) ni 2021
+   (98.29%); no inventar geometría para las llaves faltantes.
 
 ## Siguiente paso concreto
 
-Priorizar la adquisición y validación de geometrías/adyacencias seccionales antes de embeddings o GNN. Mientras tanto, conservar HistGradientBoosting como modelo experimental y mejorar evidencia temporal e incertidumbre.
+Entregar a los politólogos el paquete de sección/municipio/entidad y acordar con
+ellos las definiciones de elegibilidad, tratamiento y outcome. Sólo entonces
+preespecificar el paso 7 de evaluación causal, sin usar estos perfiles predictivos
+como sustituto de una asignación experimental o cuasiexperimental.

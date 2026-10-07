@@ -1,0 +1,2 @@
+source_id,authority,title,landing_url,download_url,local_archive,bytes,sha256,geometry_created_on,dbf_last_update,target_election_date,role
+ine_sections_2024_05_09,Instituto Nacional Electoral,Capa nacional de secciones electorales,https://pautas.ine.mx/transparencia/mapas/index_2025.html,https://pautas.ine.mx/transparencia/mapas/cob_2024/SECCION.zip,data/raw/public_ine/ine_secciones_2025_portal.zip,102602388,7098010b3c58d708afc8c0f166552fc3713699c4f39508f6fe42be5f9069c686,2024-05-09,2024-05-09,2024-06-02,authoritative_section_geometry_and_adjacency
