@@ -1,0 +1,183 @@
+{
+  "manifest_version": 1,
+  "generation_date": "2026-10-16",
+  "git_branch": "codex/final-2027-handoff",
+  "input_commit": "91379acef5cede940fa5b3912ae048e26cc46fac",
+  "model_decision": {
+    "selected_model_id": "avanzado_corregido_025",
+    "weighted_alternative_selected": false,
+    "decline_threshold_pp": 1.0,
+    "decline_training_weight": 2.0,
+    "selection_rule": "reduce_2021_false_negatives_without_reducing_f1_or_balanced_accuracy",
+    "reason": "weighted_alternative_failed_joint_gate;retain_corrected_advanced_model"
+  },
+  "configuration": {
+    "version": 1,
+    "model_version": "radar27-final-2027.1",
+    "generation_date": "2026-10-16",
+    "output_directory": "handoff/FINAL_2027",
+    "random_seed": 2701,
+    "feature_group": "competition_concurrency",
+    "feature_config": "configs/feature_ablation.yaml",
+    "model_config": "configs/tabular_challengers.yaml",
+    "model_id": "hist_gradient_boosting",
+    "evaluation_targets": [
+      2018,
+      2021,
+      2024
+    ],
+    "forecast_target_year": 2027,
+    "forecast_family": "midterm",
+    "residual_shrinkage": 0.25,
+    "material_decline_pp": 1.0,
+    "decline_training_weight": 2.0,
+    "national_component_rule": "arithmetic_mean_of_observed_midterm_changes_2009_2015_and_2015_2021",
+    "profile_rules": {
+      "material_pp": 1.0,
+      "persistent_lag_min_periods": 2,
+      "favorable_min_periods": 2,
+      "required_midterm_observations": 3
+    }
+  },
+  "commands": [
+    ".venv/bin/python scripts/run_final_2027.py",
+    ".venv/bin/pytest -q tests/test_final_2027.py",
+    ".venv/bin/pytest -q"
+  ],
+  "versions": {
+    "numpy": "2.5.3",
+    "pandas": "2.3.3",
+    "scikit-learn": "1.9.1",
+    "pyarrow": "21.0.0",
+    "PyYAML": "6.0.3"
+  },
+  "inputs": [
+    {
+      "path": "configs/final_2027.yaml",
+      "bytes": 686,
+      "sha256": "33ace42c96ddcbc3cfce3f4534ab7071a0dd6bd42124f4e03f2ccf64259b2e36"
+    },
+    {
+      "path": "configs/feature_ablation.yaml",
+      "bytes": 3958,
+      "sha256": "e32eca88b160fd94a3685978159ad1a0a6bf59731cef9e2257834b851ebfc2f3"
+    },
+    {
+      "path": "configs/tabular_challengers.yaml",
+      "bytes": 1554,
+      "sha256": "622014cda2c51d71e78feaf89c10143a82e08263429da3d9b99c0c93e5d7d5b7"
+    },
+    {
+      "path": "src/radar27/modeling/final_2027.py",
+      "bytes": 50794,
+      "sha256": "6678ff7844546918de095c9d656e740fc00fbeaaa3edbd92f766f9c91ff84817"
+    },
+    {
+      "path": "scripts/run_final_2027.py",
+      "bytes": 166,
+      "sha256": "40eaf91ab22d4d845a4ad1fa98bcad6f1a7b562e5c282910dde1f1b92c1e914c"
+    },
+    {
+      "path": "artifacts/tables/feature_ablation_mart.parquet",
+      "bytes": 71390470,
+      "sha256": "6c20f807dd1745ec0d7c45a34bd246455115904a8db1a853b959c07bb1eac849"
+    },
+    {
+      "path": "artifacts/tables/forecast_2027_model_units.parquet",
+      "bytes": 20147297,
+      "sha256": "d8a5529b30d7511d1e2b537e58aa2051cda85e212208558de35d03d847329e4d"
+    },
+    {
+      "path": "artifacts/tables/forecast_2027_section_predictions.parquet",
+      "bytes": 6540163,
+      "sha256": "3966189bba54cda11849aa0611b7bf3594f2f791203f18e17b518a95e2a46746"
+    },
+    {
+      "path": "artifacts/tables/provisional_section_year_totals.parquet",
+      "bytes": 9753568,
+      "sha256": "6b386622734163da10e4501f040c91b1644f8208c24560f3f2571f889f3bb819"
+    },
+    {
+      "path": "artifacts/graphs/section_graph_2024_edges.parquet",
+      "bytes": 4717674,
+      "sha256": "b2f4ae51923911e08179dd44bf26f5d7c7378ebb42c7b7c7e231e3340fdafdd0"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "handoff/FINAL_2027/CAIDAS_OBSERVADAS_MAYORES.csv",
+      "bytes": 111301,
+      "sha256": "3810deeb775e539be7cca04fc84bdfbf9f5a04a617fd65a3185f49f338ab34e6"
+    },
+    {
+      "path": "handoff/FINAL_2027/CHANGELOG.md",
+      "bytes": 887,
+      "sha256": "b337ff83067e1bce8b472a55059db773c44829c5692f5178f71548305227a1fc"
+    },
+    {
+      "path": "handoff/FINAL_2027/DECISION_MODELO.json",
+      "bytes": 336,
+      "sha256": "2810964d82e076ffb54dd167e2526161790a0cdf50d651ca41af6945c95d26f9"
+    },
+    {
+      "path": "handoff/FINAL_2027/DIAGNOSTICO_CAIDAS_2027.json",
+      "bytes": 604,
+      "sha256": "7ea2141889e8ffbf58198706a4a3cfb1907e21a9ab6a23a87f99b777b20ea623"
+    },
+    {
+      "path": "handoff/FINAL_2027/DICCIONARIO_VARIABLES.csv",
+      "bytes": 19417,
+      "sha256": "d16420e47b4b144b0eedfffc19b14ccd72399d7018c08c50dd82a71aab851026"
+    },
+    {
+      "path": "handoff/FINAL_2027/GUIA_PARA_POLITOLOGOS.md",
+      "bytes": 2448,
+      "sha256": "66f414f991953532596537cc71b0af04b357639d66a43297d48feb363cc854b3"
+    },
+    {
+      "path": "handoff/FINAL_2027/METODOLOGIA_TECNICA.md",
+      "bytes": 2271,
+      "sha256": "152a61dd12ab8e06cc57e48c76115a301c702a99a4cedcde1ff0b5ffff527893"
+    },
+    {
+      "path": "handoff/FINAL_2027/METRICAS_DETECCION_CAIDAS.csv",
+      "bytes": 2274,
+      "sha256": "6e77ed12c06d43c891443fb565fc13dbb68c72afb3390b73b099cabd7fa96e32"
+    },
+    {
+      "path": "handoff/FINAL_2027/PREDICCIONES_BACKTEST_PAREADAS.parquet",
+      "bytes": 21839036,
+      "sha256": "6df473708ba0ab986d6da992c2a3f65130ac27af71b36ab57c53e924e1ba6bc2"
+    },
+    {
+      "path": "handoff/FINAL_2027/RESUMEN_ENTIDADES.csv",
+      "bytes": 3887,
+      "sha256": "c41da9d39b163b1e6b0fc71185c03e00fc904578fd3b77c6158f522ce2099613"
+    },
+    {
+      "path": "handoff/FINAL_2027/RESUMEN_PERFILES.csv",
+      "bytes": 1934,
+      "sha256": "d5c8e1340ccafbda60de40ec5dc387cf0e4c645c9ae46d3e33b6c967102e3e2d"
+    },
+    {
+      "path": "handoff/FINAL_2027/SECCIONES_ELECTORALES_2027.csv",
+      "bytes": 65497199,
+      "sha256": "ab2033faa14f70e5a58f9cf81ea4e51bd435d5f7f2bbc5f3a06f0ffcee09f49f"
+    },
+    {
+      "path": "handoff/FINAL_2027/SENSIBILIDAD_COMPONENTE_NACIONAL.csv",
+      "bytes": 1080,
+      "sha256": "61f592e3098c4722ae50bd3c49411914f124e14f0bc918381e892693b6ef18c8"
+    },
+    {
+      "path": "handoff/FINAL_2027/VALIDACION_FINAL.md",
+      "bytes": 845,
+      "sha256": "1631d60a869bc72a6dd10fea4a2de0b8c5615d547e19e973f61771988cd8242f"
+    },
+    {
+      "path": "handoff/FINAL_2027/VALIDACION_PREDICCION.md",
+      "bytes": 1826,
+      "sha256": "1aadc6da6b7d3b4ef0447b382bfa9fad41a590b0418f1f512f08fa4fbb5735f8"
+    }
+  ]
+}

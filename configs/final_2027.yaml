@@ -1,0 +1,21 @@
+version: 1
+model_version: radar27-final-2027.1
+generation_date: 2026-10-16
+output_directory: handoff/FINAL_2027
+random_seed: 2701
+feature_group: competition_concurrency
+feature_config: configs/feature_ablation.yaml
+model_config: configs/tabular_challengers.yaml
+model_id: hist_gradient_boosting
+evaluation_targets: [2018, 2021, 2024]
+forecast_target_year: 2027
+forecast_family: midterm
+residual_shrinkage: 0.25
+material_decline_pp: 1.0
+decline_training_weight: 2.0
+national_component_rule: arithmetic_mean_of_observed_midterm_changes_2009_2015_and_2015_2021
+profile_rules:
+  material_pp: 1.0
+  persistent_lag_min_periods: 2
+  favorable_min_periods: 2
+  required_midterm_observations: 3

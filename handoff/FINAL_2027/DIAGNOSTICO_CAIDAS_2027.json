@@ -1,0 +1,13 @@
+{
+  "caidas_cualquier_magnitud": 128,
+  "caidas_materiales_1pp": 62,
+  "caidas_cualquier_magnitud_con_componente_anterior_4_7644pp": 68,
+  "caidas_materiales_con_componente_anterior_4_7644pp": 37,
+  "deterioros_relativos_municipio_1pp": 4398,
+  "component_nacional_pp": 3.888596217151721,
+  "residual_shrinkage": 0.25,
+  "clipping_lower": 0,
+  "clipping_upper": 8,
+  "redondeo_usado_para_clasificar": false,
+  "explicacion": "La escasez de caídas proviene del componente nacional positivo; no de redondeo. La corrección territorial centrada y contraída sólo lo supera en una minoría de secciones."
+}

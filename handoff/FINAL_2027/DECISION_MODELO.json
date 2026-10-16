@@ -1,0 +1,8 @@
+{
+  "selected_model_id": "avanzado_corregido_025",
+  "weighted_alternative_selected": false,
+  "decline_threshold_pp": 1.0,
+  "decline_training_weight": 2.0,
+  "selection_rule": "reduce_2021_false_negatives_without_reducing_f1_or_balanced_accuracy",
+  "reason": "weighted_alternative_failed_joint_gate;retain_corrected_advanced_model"
+}
