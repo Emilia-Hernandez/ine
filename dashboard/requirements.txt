@@ -1,0 +1,6 @@
+dash>=3.2,<4
+dash-leaflet>=1.1,<2
+geopandas>=1.1,<2
+pandas>=2.2,<3
+plotly>=6.3,<7
+pyarrow>=17,<22

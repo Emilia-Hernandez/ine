@@ -1,4 +1,4 @@
-.PHONY: setup fetch-data audit clean-data geography spatial-graph gnn-data graph-embedding neighbor-embedding sociodemographic-similarity spatial-features midterm-transfer entity-cycle-adaptation turnout-risk-profiles evaluate features-models uncertainty calibration-adaptation forecast-2027 feature-ablation tabular-challengers dense-neural notebooks test
+.PHONY: setup fetch-data audit clean-data geography spatial-graph gnn-data graph-embedding neighbor-embedding sociodemographic-similarity spatial-features midterm-transfer entity-cycle-adaptation turnout-risk-profiles evaluate features-models uncertainty calibration-adaptation forecast-2027 feature-ablation tabular-challengers dense-neural notebooks dashboard-data dashboard test
 
 setup:
 	uv sync --locked
@@ -72,3 +72,9 @@ notebooks:
 
 test:
 	uv run pytest -q
+
+dashboard-data:
+	uv run python -m dashboard.prepare_data
+
+dashboard:
+	uv run python -m dashboard.app

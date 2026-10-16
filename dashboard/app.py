@@ -1,0 +1,688 @@
+"""Aplicación Dash del explorador de participación electoral 2027."""
+
+from __future__ import annotations
+
+import math
+import os
+from pathlib import Path
+from typing import Any
+
+import dash_leaflet as dl
+from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
+from dash_extensions.javascript import Namespace
+
+from dashboard.data_layer import (
+    ALL_PROFILES,
+    PROFILE_LABELS,
+    SOCIO_METRICS,
+    build_payload,
+    load_sections,
+)
+from dashboard.figures import (
+    ORANGE,
+    SAND,
+    TERRACOTTA,
+    WINE,
+    distribution_figure,
+    empty_figure,
+    socio_figure,
+    timeline_figure,
+)
+from dashboard.state import resolve_selection
+
+ROOT = Path(__file__).resolve().parents[1]
+ASSETS = ROOT / "dashboard" / "assets"
+MEXICO_BOUNDS = [[14.2, -118.8], [33.4, -86.4]]
+PROFILE_COLORS = {
+    "P1": WINE,
+    "P2": "#84213B",
+    "P3": TERRACOTTA,
+    "P4": ORANGE,
+    "P5": SAND,
+    "P6": "#EDE0C7",
+    "EI": "#F4F3F1",
+}
+
+MAP_JS = Namespace("dashboardMap")
+
+app = Dash(
+    __name__,
+    assets_folder=str(ASSETS),
+    title="Participación electoral 2027 · INE",
+    update_title="Actualizando…",
+)
+server = app.server
+
+
+def _format_percent(value: Any) -> str:
+    return "No disponible" if _missing(value) else f"{float(value):.1%}"
+
+
+def _format_pp(value: Any) -> str:
+    return "No disponible" if _missing(value) else f"{float(value):+.1f} pp"
+
+
+def _format_bool(value: Any) -> str:
+    if _missing(value):
+        return "No disponible"
+    return "Sí" if bool(value) else "No"
+
+
+def _label(value: Any) -> str:
+    if _missing(value) or str(value) in {"nan", "<NA>"}:
+        return "No disponible"
+    return str(value).replace("_", " ")
+
+
+def _missing(value: Any) -> bool:
+    return value is None or (isinstance(value, float) and math.isnan(value))
+
+
+def _profile_options() -> list[dict[str, Any]]:
+    counts = load_sections()["perfil_electoral_id"].value_counts().to_dict()
+    options = []
+    for profile in ALL_PROFILES:
+        options.append(
+            {
+                "value": profile,
+                "label": html.Span(
+                    [
+                        html.Span(
+                            className="profile-dot",
+                            style={"backgroundColor": PROFILE_COLORS[profile]},
+                        ),
+                        html.Span(
+                            [
+                                html.Strong(profile),
+                                html.Span(
+                                    f" — {PROFILE_LABELS[profile]}", className="profile-name"
+                                ),
+                            ],
+                            className="profile-copy",
+                        ),
+                        html.Span(f"{counts.get(profile, 0):,}", className="profile-count"),
+                    ],
+                    className="profile-option",
+                ),
+            }
+        )
+    return options
+
+
+def _metric_card(label: str, value: str, note: str | None = None, tone: str = "") -> html.Div:
+    children: list[Any] = [
+        html.Span(label, className="metric-label"),
+        html.Strong(value, className="metric-value"),
+    ]
+    if note:
+        children.append(html.Span(note, className="metric-note"))
+    return html.Div(children, className=f"metric-card {tone}".strip())
+
+
+def _coverage_row(label: str, coverage: dict[str, Any]) -> html.Div:
+    rate = float(coverage.get("rate", 0))
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.Span(label),
+                    html.Span(f"{coverage.get('available', 0):,} / {coverage.get('total', 0):,}"),
+                ],
+                className="coverage-label",
+            ),
+            html.Div(html.Span(style={"width": f"{rate:.2%}"}), className="coverage-track"),
+        ],
+        className="coverage-row",
+    )
+
+
+def _profile_distribution(counts: dict[str, int], total: int) -> html.Div:
+    rows = []
+    for profile in ALL_PROFILES:
+        count = int(counts.get(profile, 0))
+        share = count / total if total else 0
+        rows.append(
+            html.Div(
+                [
+                    html.Div(
+                        [
+                            html.Span(
+                                className="mini-dot",
+                                style={"backgroundColor": PROFILE_COLORS[profile]},
+                            ),
+                            html.Span(profile),
+                            html.Span(f"{count:,}", className="mini-count"),
+                        ],
+                        className="mini-label",
+                    ),
+                    html.Div(
+                        html.Span(
+                            style={
+                                "width": f"{share:.2%}",
+                                "backgroundColor": PROFILE_COLORS[profile],
+                            }
+                        ),
+                        className="mini-track",
+                    ),
+                ],
+                className="mini-profile",
+            )
+        )
+    return html.Div(rows, className="profile-distribution")
+
+
+def _aggregate_panel(payload: dict[str, Any]) -> html.Div:
+    if payload["empty"]:
+        return html.Div(
+            [
+                html.Div("∅", className="empty-symbol"),
+                html.H3("No hay perfiles activos"),
+                html.P("Selecciona al menos un perfil para recuperar el mapa y los agregados."),
+            ],
+            className="empty-panel",
+        )
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.Span("Vista agregada", className="eyebrow"),
+                    html.H2("Resumen del conjunto activo"),
+                    html.P(
+                        "Los totales dependen de los perfiles seleccionados, no del zoom del mapa.",
+                        className="muted",
+                    ),
+                ]
+            ),
+            html.Div(
+                [
+                    _metric_card(
+                        "Secciones",
+                        f"{payload['section_count']:,}",
+                        f"{payload['universe_share']:.1%} del universo",
+                    ),
+                    _metric_card(
+                        "2021 observado",
+                        _format_percent(payload["observed_2021"]),
+                        "Razón de sumas",
+                    ),
+                    _metric_card(
+                        "2027 proyectado",
+                        _format_percent(payload["projected_2027"]),
+                        "Ponderado por lista nominal",
+                        "accent",
+                    ),
+                    _metric_card(
+                        "Cambio 2021→2027",
+                        _format_pp(payload["change_2021_2027_pp"]),
+                        "Referencia comparable del modelo",
+                    ),
+                ],
+                className="metric-grid",
+            ),
+            html.H3("Distribución por perfil", className="section-heading"),
+            _profile_distribution(payload["profile_counts"], payload["section_count"]),
+            html.H3("Cobertura", className="section-heading"),
+            _coverage_row("Proyección", payload["coverage"]["projection"]),
+            _coverage_row("Edad y sexo electoral", payload["coverage"]["electoral_demography"]),
+            _coverage_row("Demografía ECEG", payload["coverage"]["eceg"]),
+        ],
+        className="context-panel-body",
+    )
+
+
+def _detail_row(label: str, value: str) -> html.Div:
+    return html.Div([html.Span(label), html.Strong(value)], className="detail-row")
+
+
+def _section_panel(payload: dict[str, Any]) -> html.Div:
+    row = payload["section"]
+    profile = str(row["perfil_electoral_id"])
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.Span("Sección seleccionada", className="eyebrow"),
+                    html.H2(f"Sección {row['clave_seccion']}"),
+                    html.P(
+                        f"{str(row['nombre_entidad']).title()} · {row['nombre_municipio']}",
+                        className="place-name",
+                    ),
+                    html.Div(
+                        [
+                            html.Span(
+                                className="profile-dot",
+                                style={"backgroundColor": PROFILE_COLORS[profile]},
+                            ),
+                            html.Strong(f"{profile} — {PROFILE_LABELS[profile]}"),
+                        ],
+                        className="selected-profile",
+                    ),
+                ]
+            ),
+            html.Div(
+                [
+                    _metric_card("2021 observado", _format_percent(row.get("participacion_2021"))),
+                    _metric_card(
+                        "2027 proyectado",
+                        _format_percent(row.get("prediccion_central_2027")),
+                        "Modelo A",
+                        "accent",
+                    ),
+                    _metric_card(
+                        "Cambio proyectado", _format_pp(row.get("cambio_proyectado_2027_pp"))
+                    ),
+                    _metric_card(
+                        "Lista nominal 2024", f"{float(row.get('lista_nominal_2024', 0)):,.0f}"
+                    ),
+                ],
+                className="metric-grid",
+            ),
+            html.H3("Información territorial", className="section-heading"),
+            html.Div(
+                [
+                    _detail_row("Clase geográfica", _label(row.get("clase_confianza_geografica"))),
+                    _detail_row("Historia electoral", _label(row.get("fuente_historia_electoral"))),
+                    _detail_row(
+                        "Caída material ≥1 pp",
+                        _format_bool(row.get("senal_caida_material_proyectada")),
+                    ),
+                    _detail_row(
+                        "Deterioro vs. municipio",
+                        _format_bool(row.get("senal_deterioro_relativo_municipio")),
+                    ),
+                    _detail_row(
+                        "Calidad municipal", _label(row.get("calidad_componente_municipal"))
+                    ),
+                    _detail_row("Fallback utilizado", _format_bool(row.get("uso_fallback"))),
+                    _detail_row("Fuente 2027", _label(row.get("fuente_proyeccion_2027"))),
+                ],
+                className="detail-list",
+            ),
+            html.Div(
+                [
+                    html.Strong("Lectura responsable"),
+                    html.Span(
+                        "La tipología describe trayectorias observadas y proyectadas; no identifica causas ni motivaciones individuales."
+                    ),
+                ],
+                className="note-box",
+            ),
+        ],
+        className="context-panel-body",
+    )
+
+
+def _chart_card(
+    title: str, subtitle: str, graph_id: str, extra: Any = None, wide: bool = False
+) -> html.Section:
+    header_children: list[Any] = [html.Div([html.H3(title), html.P(subtitle)])]
+    if extra is not None:
+        header_children.append(extra)
+    return html.Section(
+        [
+            html.Div(header_children, className="chart-header"),
+            dcc.Graph(
+                id=graph_id,
+                config={"displayModeBar": False, "responsive": True},
+                figure=empty_figure("Cargando…"),
+            ),
+        ],
+        className=f"chart-card {'chart-wide' if wide else ''}".strip(),
+    )
+
+
+app.layout = html.Div(
+    [
+        dcc.Store(id="selected-section", data=None),
+        html.Header(
+            [
+                html.Div(
+                    [
+                        html.Span("RADAR 27", className="brand-mark"),
+                        html.Div(
+                            [
+                                html.H1("Participación electoral 2027"),
+                                html.P(
+                                    "Explorador seccional de perfiles, territorio y contexto sociodemográfico"
+                                ),
+                            ]
+                        ),
+                    ],
+                    className="brand-block",
+                ),
+                html.Div(
+                    [
+                        html.Span("Proyección central · Modelo A"),
+                        html.Span("Snapshot territorial 09·05·2024"),
+                    ],
+                    className="header-meta",
+                ),
+            ],
+            className="app-header",
+        ),
+        html.Main(
+            [
+                html.Section(
+                    [
+                        html.Aside(
+                            [
+                                html.Div(
+                                    [
+                                        html.Span("Filtro", className="eyebrow"),
+                                        html.H2("Perfiles electorales"),
+                                        html.P(
+                                            "Activa uno o varios perfiles para recalcular la vista agregada."
+                                        ),
+                                    ],
+                                    className="filter-intro",
+                                ),
+                                dcc.Checklist(
+                                    id="profile-filter",
+                                    options=_profile_options(),
+                                    value=ALL_PROFILES,
+                                    className="profile-checklist",
+                                    inputClassName="profile-checkbox",
+                                    labelClassName="profile-label",
+                                ),
+                                html.Div(
+                                    [
+                                        html.Button(
+                                            "Todos",
+                                            id="select-all",
+                                            n_clicks=0,
+                                            className="button button-small",
+                                        ),
+                                        html.Button(
+                                            "Limpiar",
+                                            id="clear-profiles",
+                                            n_clicks=0,
+                                            className="button button-small button-quiet",
+                                        ),
+                                        html.Button(
+                                            "Restaurar",
+                                            id="restore-profiles",
+                                            n_clicks=0,
+                                            className="button button-small button-quiet",
+                                        ),
+                                    ],
+                                    className="filter-actions",
+                                ),
+                                html.Div(
+                                    [
+                                        html.Strong("Clave de lectura"),
+                                        html.P(
+                                            "El color ordena la tipología acordada; no es una probabilidad continua de abstención."
+                                        ),
+                                    ],
+                                    className="sidebar-note",
+                                ),
+                            ],
+                            className="filter-panel panel",
+                        ),
+                        html.Section(
+                            [
+                                html.Div(
+                                    [
+                                        html.Div(
+                                            [
+                                                html.Span("Mapa seccional", className="eyebrow"),
+                                                html.H2("México · 70,751 secciones"),
+                                            ],
+                                        ),
+                                        html.Div(
+                                            [
+                                                html.Span(
+                                                    "Vista agregada",
+                                                    id="mode-badge",
+                                                    className="mode-badge",
+                                                ),
+                                                html.Button(
+                                                    "Limpiar selección",
+                                                    id="clear-selection",
+                                                    n_clicks=0,
+                                                    className="button button-clear hidden",
+                                                ),
+                                            ],
+                                            className="map-actions",
+                                        ),
+                                    ],
+                                    className="map-header",
+                                ),
+                                dl.Map(
+                                    [
+                                        dl.GeoJSON(
+                                            id="section-geo",
+                                            url="/assets/sections_overview.fgb",
+                                            format="flatgeobuf",
+                                            formatOptions={
+                                                "rect": {
+                                                    "minX": -118.8,
+                                                    "minY": 14.2,
+                                                    "maxX": -86.4,
+                                                    "maxY": 33.4,
+                                                }
+                                            },
+                                            style=MAP_JS("sectionStyle"),
+                                            filter=MAP_JS("profileFilter"),
+                                            hoverStyle={
+                                                "weight": 1.6,
+                                                "color": "#233E4D",
+                                                "fillOpacity": 0.96,
+                                            },
+                                            hideout={
+                                                "activeProfiles": ALL_PROFILES,
+                                                "selected": None,
+                                                "colors": PROFILE_COLORS,
+                                            },
+                                            zoomToBounds=False,
+                                        ),
+                                        dl.GeoJSON(
+                                            url="/assets/state_boundaries.geojson",
+                                            interactive=False,
+                                            style={
+                                                "color": "#4C4947",
+                                                "weight": 1.1,
+                                                "opacity": 0.65,
+                                                "fillOpacity": 0,
+                                            },
+                                        ),
+                                        dl.ZoomControl(position="topright"),
+                                        dl.EasyButton(
+                                            id="reset-map",
+                                            icon="⌂",
+                                            title="Volver a la vista nacional",
+                                            position="topright",
+                                        ),
+                                        dl.ScaleControl(position="bottomleft", imperial=False),
+                                    ],
+                                    id="mexico-map",
+                                    center=[23.6, -102.5],
+                                    zoom=4,
+                                    bounds=MEXICO_BOUNDS,
+                                    boundsOptions={"padding": [12, 12]},
+                                    minZoom=4,
+                                    maxZoom=16,
+                                    zoomControl=False,
+                                    preferCanvas=True,
+                                    trackViewport=True,
+                                    attributionControl=True,
+                                    style={"height": "100%", "width": "100%"},
+                                    className="mexico-map",
+                                ),
+                                html.Div(
+                                    [
+                                        html.Span("Cartografía INE · snapshot 09/05/2024"),
+                                        html.Span(
+                                            "Referencia territorial; no certificada para 2027"
+                                        ),
+                                    ],
+                                    className="map-footnote",
+                                ),
+                            ],
+                            className="map-panel panel",
+                        ),
+                        html.Aside(html.Div(id="context-panel"), className="context-panel panel"),
+                    ],
+                    className="top-grid",
+                ),
+                html.Section(
+                    [
+                        _chart_card(
+                            "Distribución por edad",
+                            "Electorado identificado en los conteos censales INE 2024",
+                            "age-chart",
+                        ),
+                        _chart_card(
+                            "Distribución por sexo",
+                            "Electorado identificado; no equivale a población residente",
+                            "sex-chart",
+                        ),
+                        _chart_card(
+                            "Contexto sociodemográfico",
+                            "Población residente o vivienda según ECEG 2020",
+                            "socio-chart",
+                            dcc.Dropdown(
+                                id="socio-metric",
+                                options=[
+                                    {"label": item["label"], "value": key}
+                                    for key, item in SOCIO_METRICS.items()
+                                ],
+                                value="internet",
+                                clearable=False,
+                                searchable=False,
+                                className="metric-select",
+                            ),
+                        ),
+                        _chart_card(
+                            "Trayectoria de participación",
+                            "Observaciones directas por código seccional; 2027 enlaza con la intermedia 2021",
+                            "timeline-chart",
+                            wide=True,
+                        ),
+                    ],
+                    className="charts-grid",
+                ),
+                html.Footer(
+                    [
+                        html.Span("2027: proyección de trabajo, no resultado observado."),
+                        html.Span(id="data-caption"),
+                    ],
+                    className="app-footer",
+                ),
+            ],
+            className="app-main",
+        ),
+    ],
+    className="app-shell",
+)
+
+
+@app.callback(
+    Output("profile-filter", "value"),
+    Input("select-all", "n_clicks"),
+    Input("clear-profiles", "n_clicks"),
+    Input("restore-profiles", "n_clicks"),
+    prevent_initial_call=True,
+)
+def update_profile_buttons(select_all: int, clear: int, restore: int) -> list[str]:
+    del select_all, clear, restore
+    if ctx.triggered_id == "clear-profiles":
+        return []
+    return ALL_PROFILES
+
+
+@app.callback(
+    Output("selected-section", "data"),
+    Output("section-geo", "hideout"),
+    Input("profile-filter", "value"),
+    Input("section-geo", "clickData"),
+    Input("clear-selection", "n_clicks"),
+    State("selected-section", "data"),
+)
+def update_selection(
+    active_profiles: list[str] | None,
+    click_data: dict[str, Any] | None,
+    clear_clicks: int,
+    current_selection: str | None,
+) -> tuple[str | None, dict[str, Any]]:
+    del clear_clicks
+    active = active_profiles or []
+    selected = resolve_selection(ctx.triggered_id, active, click_data, current_selection)
+    return selected, {"activeProfiles": active, "selected": selected, "colors": PROFILE_COLORS}
+
+
+@app.callback(
+    Output("section-geo", "url"),
+    Output("section-geo", "formatOptions"),
+    Input("mexico-map", "zoom"),
+    Input("mexico-map", "bounds"),
+)
+def update_geometry_source(zoom: float | None, bounds: Any) -> tuple[str, dict[str, Any]]:
+    url = "/assets/sections_detail.fgb" if (zoom or 4) >= 7 else "/assets/sections_overview.fgb"
+    rect = {"minX": -118.8, "minY": 14.2, "maxX": -86.4, "maxY": 33.4}
+    if isinstance(bounds, (list, tuple)) and len(bounds) == 2:
+        try:
+            south, west = bounds[0]
+            north, east = bounds[1]
+            lon_pad = max((east - west) * 0.08, 0.03)
+            lat_pad = max((north - south) * 0.08, 0.03)
+            rect = {
+                "minX": max(-119.5, west - lon_pad),
+                "minY": max(13.5, south - lat_pad),
+                "maxX": min(-85.5, east + lon_pad),
+                "maxY": min(34.0, north + lat_pad),
+            }
+        except (TypeError, ValueError):
+            pass
+    return url, {"rect": rect}
+
+
+@app.callback(
+    Output("mexico-map", "viewport"), Input("reset-map", "n_clicks"), prevent_initial_call=True
+)
+def reset_map_view(n_clicks: int) -> dict[str, Any] | Any:
+    if not n_clicks:
+        return no_update
+    return {"bounds": MEXICO_BOUNDS, "transition": "fitBounds", "options": {"padding": [12, 12]}}
+
+
+@app.callback(
+    Output("context-panel", "children"),
+    Output("age-chart", "figure"),
+    Output("sex-chart", "figure"),
+    Output("socio-chart", "figure"),
+    Output("timeline-chart", "figure"),
+    Output("mode-badge", "children"),
+    Output("clear-selection", "className"),
+    Output("data-caption", "children"),
+    Input("profile-filter", "value"),
+    Input("selected-section", "data"),
+    Input("socio-metric", "value"),
+)
+def update_dashboard(
+    active_profiles: list[str] | None,
+    selected_section: str | None,
+    metric_id: str,
+) -> tuple[Any, Any, Any, Any, Any, str, str, str]:
+    payload = build_payload(active_profiles or [], selected_section, metric_id)
+    context = _section_panel(payload) if payload["mode"] == "section" else _aggregate_panel(payload)
+    age = distribution_figure(payload["age"], WINE)
+    sex = distribution_figure(payload["sex"], ORANGE)
+    socio = socio_figure(payload["socio"])
+    timeline = (
+        timeline_figure(payload)
+        if not payload["empty"]
+        else empty_figure("Selecciona al menos un perfil")
+    )
+    mode = "Sección seleccionada" if payload["mode"] == "section" else "Vista agregada"
+    clear_class = (
+        "button button-clear" if payload["mode"] == "section" else "button button-clear hidden"
+    )
+    coverage = payload["socio"]["coverage"]
+    caption = f"Indicador ECEG: {payload['socio']['period']} · cobertura {coverage['available']:,}/{coverage['total']:,} secciones del conjunto activo"
+    return context, age, sex, socio, timeline, mode, clear_class, caption
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("DASHBOARD_PORT", "8050"))
+    app.run(host="127.0.0.1", port=port, debug=False)

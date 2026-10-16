@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Auditoría reproducible de los Conteos Censales de Participación Ciudadana del INE"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+  "dash>=3.2,<4",
+  "dash-leaflet>=1.1,<2",
   "duckdb>=1.2,<2",
   "geopandas>=1.1,<2",
   "ipykernel>=6.29,<7",
@@ -19,6 +21,7 @@ dependencies = [
   "requests>=2.32,<3",
   "scikit-learn>=1.7,<2",
   "torch>=2.7,<3",
+  "plotly>=6.3,<7",
   "xgboost>=2,<4",
 ]
 
@@ -37,6 +40,7 @@ packages = ["src/radar27"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = [".", "src"]
 
 [tool.ruff]
 line-length = 100

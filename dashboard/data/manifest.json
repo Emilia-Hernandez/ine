@@ -1,0 +1,27 @@
+{
+  "handoff": "handoff/FINAL_2027_MUNICIPAL",
+  "handoff_version": "radar27-final-2027-municipal.1",
+  "geometry_source": "data/raw/public_ine/ine_secciones_2025_portal.zip",
+  "geometry_version": "snapshot_INE_2024-05-09_no_certificado_para_2027",
+  "sections": 70751,
+  "profile_counts": {
+    "P1": 2718,
+    "P2": 58,
+    "P3": 20698,
+    "P4": 7028,
+    "P5": 9955,
+    "P6": 20932,
+    "EI": 9362
+  },
+  "geometry_files_bytes": {
+    "overview": 19580088,
+    "detail": 51966480
+  },
+  "electoral_demography_sections": 58534,
+  "eceg_sections": 67976,
+  "notes": [
+    "No se recalcularon predicciones ni perfiles.",
+    "La cartografía es el snapshot INE 2024-05-09, no geometría certificada para 2027.",
+    "Las geometrías overview/detail fueron simplificadas solo para visualización."
+  ]
+}
