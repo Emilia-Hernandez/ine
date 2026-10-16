@@ -1,0 +1,22 @@
+version: 1
+model_version: radar27-final-2027-municipal.1
+generation_date: 2026-10-16
+output_directory: handoff/FINAL_2027_MUNICIPAL
+random_seed: 2701
+feature_group: competition_concurrency
+feature_config: configs/feature_ablation.yaml
+model_config: configs/tabular_challengers.yaml
+model_id: hist_gradient_boosting
+evaluation_targets: [2018, 2021, 2024]
+residual_shrinkage: 0.25
+material_decline_pp: 1.0
+hierarchical_weight_rule: comparable_electorate_coverage_times_leave_one_out_precision_factor_n_minus_1_over_n
+neighbor_features:
+  - neighbor_participation_same_type_mean
+  - participation_same_type_minus_neighbor_mean
+  - neighbor_participation_change_lag1_lag2_mean
+  - participation_change_lag1_lag2_minus_neighbor_mean
+selection_gate:
+  maximum_2021_mae_deterioration: 0.005
+  hierarchical_f1_tolerance: 0.002
+  hierarchical_mae_tolerance: 0.002

@@ -1,0 +1,203 @@
+{
+  "manifest_version": 1,
+  "generation_date": "2026-10-16",
+  "git_branch": "codex/final-2027-municipal",
+  "input_commit": "6ab4b3dd2e5a81732a88b77b2fedff1036f4171b",
+  "canonical_status": "replaces_FINAL_2027_as_working_projection;previous_handoff_preserved",
+  "decision": {
+    "selected_model_id": "A_nacional_actual",
+    "preferred_municipal_alternative": "C_municipal_jerarquico",
+    "selection_reason": "municipal_models_failed_prespecified_2021_joint_gate",
+    "primary_development_target": 2021,
+    "joint_gate": {
+      "maximum_2021_mae_deterioration": 0.005,
+      "hierarchical_f1_tolerance": 0.002,
+      "hierarchical_mae_tolerance": 0.002
+    },
+    "selection_is_external_validation": false,
+    "municipal_weight_rule": "w_m=electoral_coverage_times_(n_comparable_units-1)/n_comparable_units",
+    "residual_centering": "within_target_year_and_municipality_with_pre_election_weights",
+    "neighbor_features_temporally_valid": [
+      "neighbor_participation_same_type_mean",
+      "participation_same_type_minus_neighbor_mean",
+      "neighbor_participation_change_lag1_lag2_mean",
+      "participation_change_lag1_lag2_minus_neighbor_mean"
+    ]
+  },
+  "configuration": {
+    "version": 1,
+    "model_version": "radar27-final-2027-municipal.1",
+    "generation_date": "2026-10-16",
+    "output_directory": "handoff/FINAL_2027_MUNICIPAL",
+    "random_seed": 2701,
+    "feature_group": "competition_concurrency",
+    "feature_config": "configs/feature_ablation.yaml",
+    "model_config": "configs/tabular_challengers.yaml",
+    "model_id": "hist_gradient_boosting",
+    "evaluation_targets": [
+      2018,
+      2021,
+      2024
+    ],
+    "residual_shrinkage": 0.25,
+    "material_decline_pp": 1.0,
+    "hierarchical_weight_rule": "comparable_electorate_coverage_times_leave_one_out_precision_factor_n_minus_1_over_n",
+    "neighbor_features": [
+      "neighbor_participation_same_type_mean",
+      "participation_same_type_minus_neighbor_mean",
+      "neighbor_participation_change_lag1_lag2_mean",
+      "participation_change_lag1_lag2_minus_neighbor_mean"
+    ],
+    "selection_gate": {
+      "maximum_2021_mae_deterioration": 0.005,
+      "hierarchical_f1_tolerance": 0.002,
+      "hierarchical_mae_tolerance": 0.002
+    }
+  },
+  "commands": [
+    "LOKY_MAX_CPU_COUNT=4 .venv/bin/python scripts/run_final_2027_municipal.py",
+    ".venv/bin/pytest -q tests/test_final_2027_municipal.py",
+    ".venv/bin/pytest -q"
+  ],
+  "versions": {
+    "numpy": "2.5.3",
+    "pandas": "2.3.3",
+    "scikit-learn": "1.9.1",
+    "pyarrow": "21.0.0",
+    "PyYAML": "6.0.3"
+  },
+  "inputs": [
+    {
+      "path": "configs/final_2027_municipal.yaml",
+      "bytes": 855,
+      "sha256": "19bf94b6911aad6fb189b286f4c5d4f54ff8ea3d917daf15aa60a722b432bac3"
+    },
+    {
+      "path": "src/radar27/modeling/final_2027_municipal.py",
+      "bytes": 61657,
+      "sha256": "8817eddf516756f8a95e7f0dfe61800cf9f2f3df068a541d16936d708be0b659"
+    },
+    {
+      "path": "scripts/run_final_2027_municipal.py",
+      "bytes": 196,
+      "sha256": "114febb7c834e7f97dfecce63c02133e68216eff9118f17a6a363aec008ea214"
+    },
+    {
+      "path": "artifacts/tables/feature_ablation_mart.parquet",
+      "bytes": 71390470,
+      "sha256": "6c20f807dd1745ec0d7c45a34bd246455115904a8db1a853b959c07bb1eac849"
+    },
+    {
+      "path": "artifacts/tables/provisional_section_year_totals.parquet",
+      "bytes": 9753568,
+      "sha256": "6b386622734163da10e4501f040c91b1644f8208c24560f3f2571f889f3bb819"
+    },
+    {
+      "path": "artifacts/tables/section_confidence_by_election.parquet",
+      "bytes": 8643146,
+      "sha256": "5c467bb694760e2ad75361e1239aa4bfbd758d90166440a0638c29f706b893d3"
+    },
+    {
+      "path": "artifacts/tables/lineage_components_by_election.parquet",
+      "bytes": 123974,
+      "sha256": "89ac373b26fe5d339f4317000d4992e6c3c848e8bca06f430f2d35629bac821d"
+    },
+    {
+      "path": "artifacts/graphs/section_graph_2024_edges.parquet",
+      "bytes": 4717674,
+      "sha256": "b2f4ae51923911e08179dd44bf26f5d7c7378ebb42c7b7c7e231e3340fdafdd0"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "handoff/FINAL_2027_MUNICIPAL/CHANGELOG.md",
+      "bytes": 733,
+      "sha256": "0558268b42ac3fd8fa8aba8eb8844487e519d0e00c68d3791b5836ea65765611"
+    },
+    {
+      "path": "handoff/FINAL_2027_MUNICIPAL/COBERTURA_MODELOS.csv",
+      "bytes": 424,
+      "sha256": "0469f995caa1396b453e7e60a9fc2c5a765edd6af4e052aa52891b890181bf55"
+    },
+    {
+      "path": "handoff/FINAL_2027_MUNICIPAL/COMPARACION_PRONOSTICOS_2027.csv",
+      "bytes": 672,
+      "sha256": "99b550a7893ffbb9155bd83fc89dbcbfa370c611bba3524719890d0de90572ba"
+    },
+    {
+      "path": "handoff/FINAL_2027_MUNICIPAL/COMPONENTES_MUNICIPALES_HISTORICOS.parquet",
+      "bytes": 15171382,
+      "sha256": "f538615857692e23406beddd7ba5504e5404b46b6a9bbb9a48bca029861b8978"
+    },
+    {
+      "path": "handoff/FINAL_2027_MUNICIPAL/DECISION_MODELO.json",
+      "bytes": 860,
+      "sha256": "3d62f213e9659ec5bb503d979de6786824f3e6a50fbb15c8fa1fa29cc9f0c156"
+    },
+    {
+      "path": "handoff/FINAL_2027_MUNICIPAL/DIAGNOSTICO_CENTRADO_MUNICIPAL.csv",
+      "bytes": 4239626,
+      "sha256": "e7730f687d2ef5af122686b8e0ff4484809baae1d34c23acbf57aeda996e1f4b"
+    },
+    {
+      "path": "handoff/FINAL_2027_MUNICIPAL/DICCIONARIO_VARIABLES.csv",
+      "bytes": 24920,
+      "sha256": "d639ce2b716d61eb489a9e862ebd31c96da7da568055ccfa912eb58061607501"
+    },
+    {
+      "path": "handoff/FINAL_2027_MUNICIPAL/ERRORES_TERRITORIALES.csv",
+      "bytes": 1816693,
+      "sha256": "3c93db838eac685d27e92b4f03919fe2200800609692e5ece8abb0d08c5326a5"
+    },
+    {
+      "path": "handoff/FINAL_2027_MUNICIPAL/GUIA_PARA_POLITOLOGOS.md",
+      "bytes": 1836,
+      "sha256": "a25785864fd2ff2f9ff78cb87e2a6e55e435b66fc3a12e31b12f2d51953053d8"
+    },
+    {
+      "path": "handoff/FINAL_2027_MUNICIPAL/METODOLOGIA_TECNICA.md",
+      "bytes": 1582,
+      "sha256": "62e6a899fe98d13260dd7e45b6f8a62453b6b68ff7839c7330e3a8657fd364d7"
+    },
+    {
+      "path": "handoff/FINAL_2027_MUNICIPAL/METRICAS_MODELOS.csv",
+      "bytes": 2478,
+      "sha256": "7c2e05a0adcdbde78f8fea6e389c775313ab4859b325ffd9706e68007871060a"
+    },
+    {
+      "path": "handoff/FINAL_2027_MUNICIPAL/PREDICCIONES_BACKTEST_PAREADAS.parquet",
+      "bytes": 8956279,
+      "sha256": "fac6e8053b0e7510e5001c342e55f1f55a96ac6464ba494f88d507910ce66674"
+    },
+    {
+      "path": "handoff/FINAL_2027_MUNICIPAL/RESUMEN_ENTIDADES.csv",
+      "bytes": 3887,
+      "sha256": "2995f904ce1fccc205c33e820a7107181857fc913345878ad1d92f7234798b4c"
+    },
+    {
+      "path": "handoff/FINAL_2027_MUNICIPAL/RESUMEN_MUNICIPIOS.csv",
+      "bytes": 649371,
+      "sha256": "4d25f09380a44d97ed1e01ce0af4aa40d6a1561f9e8647b12992ce908429a5d8"
+    },
+    {
+      "path": "handoff/FINAL_2027_MUNICIPAL/RESUMEN_PERFILES.csv",
+      "bytes": 2047,
+      "sha256": "409ecdbfa0ff3df112f931bfa8f758a6bf91949e31194292d99318767ff1785b"
+    },
+    {
+      "path": "handoff/FINAL_2027_MUNICIPAL/SECCIONES_ELECTORALES_2027.csv",
+      "bytes": 83766025,
+      "sha256": "0fca0ae3331e8cd0464d440dda6cee0ae0e8e297a21a319676a0b38b827a7c15"
+    },
+    {
+      "path": "handoff/FINAL_2027_MUNICIPAL/VALIDACION_FINAL.md",
+      "bytes": 634,
+      "sha256": "a7bfb9b7d38482529d2ecd55a9866331d12e5860e1272ec63331934b6e063a8b"
+    },
+    {
+      "path": "handoff/FINAL_2027_MUNICIPAL/VALIDACION_PREDICCION.md",
+      "bytes": 2036,
+      "sha256": "1938bc5ce24a1479e6c42e637fbd052303c04e6686a86a8338bc0c076fcc4faa"
+    }
+  ]
+}
