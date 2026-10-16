@@ -15,18 +15,20 @@ GRID = "#E7E3DF"
 TEXT = "#2B2928"
 
 
-def _base_layout(figure: go.Figure, *, height: int = 270) -> go.Figure:
+def _base_layout(
+    figure: go.Figure, *, margin: dict[str, int] | None = None
+) -> go.Figure:
     figure.update_layout(
-        height=height,
-        margin={"l": 32, "r": 18, "t": 18, "b": 34},
+        autosize=True,
+        margin=margin or {"l": 42, "r": 24, "t": 28, "b": 42},
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         font={"family": "Inter, system-ui, sans-serif", "color": TEXT, "size": 12},
         hoverlabel={"bgcolor": "#FFFFFF", "bordercolor": GRID, "font": {"color": TEXT}},
         showlegend=False,
     )
-    figure.update_xaxes(showgrid=False, zeroline=False, linecolor=GRID)
-    figure.update_yaxes(showgrid=True, gridcolor=GRID, zeroline=False)
+    figure.update_xaxes(showgrid=False, zeroline=False, linecolor=GRID, automargin=True)
+    figure.update_yaxes(showgrid=True, gridcolor=GRID, zeroline=False, automargin=True)
     return figure
 
 
@@ -130,10 +132,20 @@ def timeline_figure(payload: dict[str, Any]) -> go.Figure:
             yshift=20,
             font={"color": BLUE, "size": 11},
         )
-    figure.update_layout(showlegend=True, legend={"orientation": "h", "y": 1.12, "x": 0})
     figure.update_yaxes(tickformat=".0%", rangemode="tozero", title=None)
     figure.update_xaxes(tickmode="array", tickvals=[2009, 2012, 2015, 2018, 2021, 2024, 2027])
-    return _base_layout(figure, height=300)
+    figure = _base_layout(figure, margin={"l": 52, "r": 28, "t": 34, "b": 84})
+    figure.update_layout(
+        showlegend=True,
+        legend={
+            "orientation": "h",
+            "x": 0,
+            "xanchor": "left",
+            "y": -0.22,
+            "yanchor": "top",
+        },
+    )
+    return figure
 
 
 def socio_figure(data: dict[str, Any]) -> go.Figure:
@@ -157,4 +169,4 @@ def socio_figure(data: dict[str, Any]) -> go.Figure:
     )
     figure.update_xaxes(range=[0, xmax], tickformat=".0%" if is_percent else ".0f")
     figure.update_yaxes(showgrid=False)
-    return _base_layout(figure)
+    return _base_layout(figure, margin={"l": 42, "r": 62, "t": 28, "b": 42})

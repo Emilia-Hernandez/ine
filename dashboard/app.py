@@ -313,20 +313,30 @@ def _section_panel(payload: dict[str, Any]) -> html.Div:
 
 
 def _chart_card(
-    title: str, subtitle: str, graph_id: str, extra: Any = None, wide: bool = False
+    title: str,
+    subtitle: str,
+    graph_id: str,
+    extra: Any = None,
+    wide: bool = False,
+    note: str | None = None,
 ) -> html.Section:
     header_children: list[Any] = [html.Div([html.H3(title), html.P(subtitle)])]
     if extra is not None:
         header_children.append(extra)
+    graph_height = "350px" if wide else "240px"
+    children: list[Any] = [
+        html.Div(header_children, className="chart-header"),
+        dcc.Graph(
+            id=graph_id,
+            config={"displayModeBar": False, "responsive": True},
+            figure=empty_figure("Cargando…"),
+            style={"height": graph_height},
+        ),
+    ]
+    if note:
+        children.append(html.P(note, className="chart-note"))
     return html.Section(
-        [
-            html.Div(header_children, className="chart-header"),
-            dcc.Graph(
-                id=graph_id,
-                config={"displayModeBar": False, "responsive": True},
-                figure=empty_figure("Cargando…"),
-            ),
-        ],
+        children,
         className=f"chart-card {'chart-wide' if wide else ''}".strip(),
     )
 
@@ -558,15 +568,16 @@ app.layout = html.Div(
                             "Observaciones directas por código seccional; 2027 enlaza con la intermedia 2021",
                             "timeline-chart",
                             wide=True,
+                            note=(
+                                "La serie observada y la proyección usan referencias comparables, "
+                                "pero 2027 es una proyección de trabajo y no un resultado observado."
+                            ),
                         ),
                     ],
                     className="charts-grid",
                 ),
                 html.Footer(
-                    [
-                        html.Span("2027: proyección de trabajo, no resultado observado."),
-                        html.Span(id="data-caption"),
-                    ],
+                    html.Span(id="data-caption"),
                     className="app-footer",
                 ),
             ],
