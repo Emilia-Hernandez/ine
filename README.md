@@ -1,10 +1,22 @@
 # RADAR 27
 
+> **Handoff corregido:** la versión para análisis de politólogos se genera con
+> `PYTHONPATH=src .venv/bin/python scripts/run_validated_handoff.py` y se documenta
+> en `handoff/`. Conserva persistencia como predicción operativa y etiqueta el
+> modelo centrado, los perfiles y el score como resultados de desarrollo. Las
+> métricas, intervalos y proyecciones descritos más abajo como resultados
+> históricos quedan preservados para trazabilidad, pero no deben usarse para
+> decisiones ni presentarse como resultados vigentes.
+
 RADAR 27 es un proyecto reproducible para el Reto 2 del hackathon del INE. Construye una base longitudinal de participación electoral por sección, documenta cambios del Marco Geográfico Electoral, genera variables históricas por sexo y edad y compara modelos temporales sin utilizar información posterior a cada elección evaluada.
 
-El repositorio contiene código, notebooks fuente, configuraciones, pruebas, documentación y manifiestos con URLs y hashes. **No contiene datos crudos, datos intermedios ni artefactos generados.** Esos directorios se reconstruyen localmente y están excluidos por `.gitignore`.
+El repositorio contiene código, notebooks fuente, configuraciones, pruebas, documentación y manifiestos con URLs y hashes. No contiene datos crudos ni datos intermedios. El directorio versionado `handoff/` es la excepción deliberada: contiene el paquete corregido listo para revisión; los demás artefactos generados se reconstruyen localmente y permanecen excluidos por `.gitignore`.
 
-## Resultado actual
+## Resultados históricos anteriores (no vigentes)
+
+Esta sección conserva lo reportado antes de la auditoría. Para cualquier uso
+actual, prevalecen `handoff/DECISION_MODELO_OPERATIVO.json`,
+`handoff/METRICAS_VALIDACION.csv` y `handoff/VALIDACION_FINAL.md`.
 
 - Se auditaron 54,872,712 registros CCPC de elecciones federales 2009–2024.
 - Los linajes territoriales públicos se clasifican como A/B/C/D.

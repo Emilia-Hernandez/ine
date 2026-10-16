@@ -1,0 +1,19 @@
+version: 2
+model_version: radar27-validated-handoff-2026.1
+random_seed: 2701
+feature_group: competition_concurrency
+feature_config: configs/feature_ablation.yaml
+model_config: configs/tabular_challengers.yaml
+model_id: hist_gradient_boosting
+evaluation_targets: [2018, 2021, 2024]
+forecast_target_year: 2027
+forecast_family: midterm
+residual_shrinkage_candidates: [0.0, 0.1, 0.25, 0.5, 0.75, 1.0]
+minimum_fold_wins_for_operational_use: 2
+maximum_fold_weighted_mae_deterioration: 0.002
+require_external_validation_for_advanced_operational_use: true
+bootstrap_repetitions: 500
+risk_threshold_quantile: 0.8
+risk_decline_threshold_pp: 2.0
+generation_date: 2026-10-15
+output_directory: handoff

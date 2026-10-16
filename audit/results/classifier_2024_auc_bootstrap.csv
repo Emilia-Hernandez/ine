@@ -1,0 +1,3 @@
+probability,bootstrap_repetitions,auc_ci_low,auc_ci_high,probability_auc_below_0_5
+probability_time_calibrated,500,0.3400850217856202,0.5216403581926446,0.94
+probability_raw,500,0.3396710991617435,0.5283548803981777,0.924

@@ -1,0 +1,10 @@
+{
+  "section_rows": 70751,
+  "unique_section_ids": 70751,
+  "duplicate_section_ids": 0,
+  "ab_sections": 65095,
+  "cd_sections": 5656,
+  "ab_with_local_eceg": 65057,
+  "ab_with_entity_eceg_fallback": 38,
+  "counts_reconcile": true
+}

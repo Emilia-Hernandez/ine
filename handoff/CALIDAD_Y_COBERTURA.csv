@@ -1,0 +1,8 @@
+indicador,secciones_con_dato,universo,nota,cobertura
+universo_maestro,70751,70751,una fila por sección,1.0
+prediccion_operativa,70751,70751,baseline local A/B o referencia jerárquica C/D,1.0
+perfil_exploratorio_con_evidencia_local,65095,70751,sólo A/B con conteos locales,0.9200576670294413
+score_riesgo_experimental,65095,70751,sólo A/B; no es probabilidad externamente validada,0.9200576670294413
+eceg_agregado_local_ab,65057,70751,38 A/B usan referencia estatal,0.9195205721473901
+score_alto_experimental,14821,65095,p80 inclusivo; 3867 empates,0.22768261771257392
+caida_exploratoria_positiva,68,70751,magnitud puntual; no categoría probabilística,0.0009611171573546663

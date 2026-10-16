@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="560" viewBox="0 0 980 560">
+<rect width="100%" height="100%" fill="white"/>
+<text x="36" y="38" font-family="Arial" font-size="22" font-weight="700">MAE ponderado por elección y alternativa</text>
+<line x1="80" y1="460.0" x2="930" y2="460.0" stroke="#dddddd"/>
+<text x="68" y="464.0" text-anchor="end" font-family="Arial" font-size="12">0%</text>
+<line x1="80" y1="387.6" x2="930" y2="387.6" stroke="#dddddd"/>
+<text x="68" y="391.6" text-anchor="end" font-family="Arial" font-size="12">2%</text>
+<line x1="80" y1="315.2" x2="930" y2="315.2" stroke="#dddddd"/>
+<text x="68" y="319.2" text-anchor="end" font-family="Arial" font-size="12">4%</text>
+<line x1="80" y1="242.9" x2="930" y2="242.9" stroke="#dddddd"/>
+<text x="68" y="246.9" text-anchor="end" font-family="Arial" font-size="12">6%</text>
+<line x1="80" y1="170.5" x2="930" y2="170.5" stroke="#dddddd"/>
+<text x="68" y="174.5" text-anchor="end" font-family="Arial" font-size="12">8%</text>
+<line x1="80" y1="98.1" x2="930" y2="98.1" stroke="#dddddd"/>
+<text x="68" y="102.1" text-anchor="end" font-family="Arial" font-size="12">10%</text>
+<rect x="170" y="132.0" width="48" height="328.0" fill="#4575b4"/>
+<text x="194.0" y="127.0" text-anchor="middle" font-family="Arial" font-size="11">9.06</text>
+<rect x="224" y="132.0" width="48" height="328.0" fill="#91bfdb"/>
+<text x="248.0" y="127.0" text-anchor="middle" font-family="Arial" font-size="11">9.06</text>
+<rect x="278" y="298.3" width="48" height="161.7" fill="#d73027"/>
+<text x="302.0" y="293.3" text-anchor="middle" font-family="Arial" font-size="11">4.47</text>
+<rect x="332" y="301.3" width="48" height="158.7" fill="#777777"/>
+<text x="356.0" y="296.3" text-anchor="middle" font-family="Arial" font-size="11">4.39</text>
+<text x="275" y="488" text-anchor="middle" font-family="Arial" font-size="15" font-weight="700">2018</text>
+<rect x="450" y="208.3" width="48" height="251.7" fill="#4575b4"/>
+<text x="474.0" y="203.3" text-anchor="middle" font-family="Arial" font-size="11">6.96</text>
+<rect x="504" y="210.4" width="48" height="249.6" fill="#91bfdb"/>
+<text x="528.0" y="205.4" text-anchor="middle" font-family="Arial" font-size="11">6.90</text>
+<rect x="558" y="194.8" width="48" height="265.2" fill="#d73027"/>
+<text x="582.0" y="189.8" text-anchor="middle" font-family="Arial" font-size="11">7.33</text>
+<rect x="612" y="120.4" width="48" height="339.6" fill="#777777"/>
+<text x="636.0" y="115.4" text-anchor="middle" font-family="Arial" font-size="11">9.38</text>
+<text x="555" y="488" text-anchor="middle" font-family="Arial" font-size="15" font-weight="700">2021</text>
+<rect x="730" y="293.4" width="48" height="166.6" fill="#4575b4"/>
+<text x="754.0" y="288.4" text-anchor="middle" font-family="Arial" font-size="11">4.60</text>
+<rect x="784" y="278.7" width="48" height="181.3" fill="#91bfdb"/>
+<text x="808.0" y="273.7" text-anchor="middle" font-family="Arial" font-size="11">5.01</text>
+<rect x="838" y="297.6" width="48" height="162.4" fill="#d73027"/>
+<text x="862.0" y="292.6" text-anchor="middle" font-family="Arial" font-size="11">4.49</text>
+<rect x="892" y="300.0" width="48" height="160.0" fill="#777777"/>
+<text x="916.0" y="295.0" text-anchor="middle" font-family="Arial" font-size="11">4.42</text>
+<text x="835" y="488" text-anchor="middle" font-family="Arial" font-size="15" font-weight="700">2024</text>
+<rect x="80" y="505" width="14" height="14" fill="#4575b4"/>
+<text x="100" y="517" font-family="Arial" font-size="12">A cambio completo</text>
+<rect x="300" y="505" width="14" height="14" fill="#91bfdb"/>
+<text x="320" y="517" font-family="Arial" font-size="12">B residual nacional</text>
+<rect x="520" y="505" width="14" height="14" fill="#d73027"/>
+<text x="540" y="517" font-family="Arial" font-size="12">C repositorio</text>
+<rect x="740" y="505" width="14" height="14" fill="#777777"/>
+<text x="760" y="517" font-family="Arial" font-size="12">D persistencia</text>
+</svg>

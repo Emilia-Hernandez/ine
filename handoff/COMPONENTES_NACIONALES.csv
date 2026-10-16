@@ -1,0 +1,5 @@
+target_year,election_family,source_recent_year,source_previous_year,national_component,status
+2018,presidential,,,0.0,zero_fallback_fewer_than_two_prior_same_family_elections
+2021,midterm,2015,2009,0.030127766531369116,prior_same_family_national_ratio_of_sums
+2024,presidential,2018,2012,0.002821395501937718,prior_same_family_national_ratio_of_sums
+2027,midterm,2021,2015,0.04764415781166531,prior_same_family_national_ratio_of_sums

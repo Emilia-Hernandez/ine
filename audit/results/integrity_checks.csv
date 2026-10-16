@@ -1,0 +1,16 @@
+check,status,evidence
+final section key unique,PASS,70751
+final section count,PASS,70751
+confidence classes exhaustive,PASS,"{'A': 58534, 'B': 6561, 'D': 3791, 'C': 1865}"
+probabilities bounded,PASS,"{'min': 0.0, 'max': 1.0}"
+turnout forecasts bounded,PASS,"{'min': 0.040949176596482686, 'max': 1.0}"
+priority exhaustive,PASS,"{'4_resto': 51067, '3_alto_riesgo': 9793, '1_alto_riesgo_alto_volumen': 5838, '2_alto_volumen': 4053}"
+feature mart key unique,PASS,243108
+feature temporal order,PASS,0
+source hash data/raw/reference/Manual-Conteos-Censales-2009-2024.pdf,PASS,90bd0e45e28a4f231ad468e3c797eb262f5c1363e53fc089bd69d6d764e5c4cd
+source hash data/raw/ccpc/2009/DatosAbiertos_DECEyEC_ConteosCensales2009.zip,PASS,e626e9528a91206c23fc8f96987e1a297db285e7cbc0fa1e37a18ed473ebf61c
+source hash data/raw/ccpc/2012/DatosAbiertos_DECEyEC_ConteosCensales2012.zip,PASS,5999f86e21154138b904723cb5d55ebde9e108ac72872f2ff5695d9eb8fde9cd
+source hash data/raw/ccpc/2015/DatosAbiertos_DECEyEC_ConteosCensales2015.zip,PASS,7435ac54a3a6aebf5d9c9466a064b320b64bf5ff8b4d8ae787bad898497341da
+source hash data/raw/ccpc/2018/DatosAbiertos_DECEyEC_ConteosCensales2018.zip,PASS,b20981a0aea1ac773e7bc0b54784bba7619346585ba3996744ad22458279dd8b
+source hash data/raw/ccpc/2021/DatosAbiertos_DECEyEC_ConteosCensales2021.zip,PASS,29bdfaaa33be5151c2ae8c8e406d8a27976006d11e6cbe201ac05cc04def4849
+source hash data/raw/ccpc/2024/DatosAbiertos_DECEyEC_ConteosCensales2024.zip,PASS,c0de34d04e782ad99579b83591a6e3e6c8d1e20f4914d4845743bd79d2bd28b2

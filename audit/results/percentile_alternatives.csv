@@ -1,0 +1,11 @@
+indicator,alternative,threshold_value,reference_population,selected_sections,selected_share,ties_at_threshold,missing_values,zero_values,changes_vs_current
+risk,A_current_rank_average_ge_80,0.4457185141782025,70751,15631,0.2209297395089822,3867,0,15,0
+risk,B_raw_p80_strict,0.4457185141782025,70751,11764,0.16627326822235727,3867,0,15,3867
+risk,C_raw_p80_inclusive,0.4457185141782025,70751,15631,0.2209297395089822,3867,0,15,0
+risk,D_exact_top_20_rank_section_id_tiebreak,0.4457185141782025,70751,14151,0.20001130726067476,3867,0,15,1480
+risk,E_operational_positive_volume_or_inclusive_risk,0.4457185141782025,70751,15631,0.2209297395089822,3867,0,15,0
+volume,A_current_rank_average_ge_80,0.0,70751,9891,0.1398001441675736,60860,0,60860,0
+volume,B_raw_p80_strict,0.0,70751,9891,0.1398001441675736,60860,0,60860,0
+volume,C_raw_p80_inclusive,0.0,70751,70751,1.0,60860,0,60860,60860
+volume,D_exact_top_20_rank_section_id_tiebreak,0.0,70751,14151,0.20001130726067476,60860,0,60860,4260
+volume,E_operational_positive_volume_or_inclusive_risk,0.0,70751,9891,0.1398001441675736,60860,0,60860,0

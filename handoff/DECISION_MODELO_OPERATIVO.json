@@ -1,0 +1,11 @@
+{
+  "operational_model_id": "A_persistence",
+  "operational_shrinkage": 0.0,
+  "operational_reason": "centered_candidate_passed_development_gate_but_external_validation_is_unavailable",
+  "development_model_id": "D_centered_shrink_0.25",
+  "development_shrinkage": 0.25,
+  "selection_is_external_validation": false,
+  "national_component_definition": "difference_of_national_ratio_of_sums_between_two_latest_prior_same_family_elections",
+  "entity_cycle_correction_used": false,
+  "prediction_residual_centered_with": "pre_election_nominal_list_weights"
+}

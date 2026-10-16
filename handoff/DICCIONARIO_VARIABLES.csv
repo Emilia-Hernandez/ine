@@ -1,0 +1,45 @@
+variable,categoria,definicion,unidad,fuente,periodo_referencia,permite_nulo,valores_no_nulos
+clave_entidad,Identificación,Clave INE de entidad,texto,INE CCPC,2024,False,70751
+nombre_entidad,Identificación,Nombre de la entidad,texto,INE CCPC,2024,False,70751
+clave_municipio,Identificación,Clave territorial observada del municipio,texto,INE CCPC,2024,False,70751
+nombre_municipio,Identificación,Nombre observado del municipio,texto,INE CCPC,2024,False,70751
+distrito_federal_2024,Identificación,Distrito federal observado,texto,INE CCPC,2024,False,70751
+distrito_local_2024,Identificación,Distrito local observado,texto,INE CCPC,2024,True,70615
+clave_seccion,Identificación,Clave entidad:sección,texto,INE CCPC,2024,False,70751
+tipo_seccion,Identificación,Tipo de sección observado,texto,INE CCPC,2024,False,70751
+lista_nominal_2024,Histórico,Registros de lista nominal 2024,personas,INE CCPC,2024,False,70751
+participacion_observada_2024,Histórico,SV/(SV+NV) observado,proporción,INE CCPC,2024,True,68956
+participacion_referencia_historica_2021,Predicción,Referencia de la elección intermedia previa; local para A/B y jerárquica para C/D,proporción,pipeline histórico,2021,False,70751
+prediccion_operativa_2027,Predicción,Baseline conservador seleccionado por gate,proporción,pipeline corregido,2027,False,70751
+prediccion_exploratoria_centrada_2027,Predicción,Escenario de desarrollo con componente nacional y residual centrado,proporción,pipeline corregido,2027,False,70751
+componente_nacional_2027,Predicción,Cambio nacional 2015-2021 por razón de sumas,proporción,INE CCPC,2015-2021,False,70751
+residual_territorial_centrado,Predicción,Corrección territorial con media ponderada preelectoral cero,proporción,modelo corregido,2027,True,65095
+contraccion_residual_desarrollo,Predicción,Factor seleccionado con validación de desarrollo,factor,configuración,2027,False,70751
+cambio_operativo_predicho_pp,Predicción,Predicción operativa menos referencia,puntos porcentuales,derivado,2027,False,70751
+cambio_exploratorio_predicho_pp,Predicción,Escenario exploratorio menos referencia,puntos porcentuales,derivado,2027,False,70751
+caida_exploratoria_predicha_pp,Riesgo,Máximo entre cero y la caída del escenario exploratorio,puntos porcentuales,derivado,2027,False,70751
+volumen_exploratorio_caida_positiva,Riesgo,Lista nominal por caída exploratoria positiva,personas estimadas,derivado,2027,False,70751
+indicador_caida_exploratoria_positiva,Riesgo,Verdadero si la caída exploratoria es mayor que cero,booleano,derivado,2027,False,70751
+incertidumbre_prediccion,Predicción,Etiqueta cualitativa; no es intervalo de cobertura,categoría,pipeline corregido,2027,False,70751
+estado_prediccion_operativa,Predicción,Alcance de uso de la predicción,categoría,pipeline corregido,2027,False,70751
+perfil_exploratorio_id,Perfil,Cluster descriptivo sólo con evidencia local A/B,categoría,CCPC,2024,True,65095
+perfil_exploratorio_nombre,Perfil,Nombre neutral del patrón descriptivo,texto,CCPC,2024,True,65095
+estado_validacion_perfil,Perfil,Separación y suficiencia de evidencia,categoría,validación histórica,2024,False,70751
+patron_estable_brecha_desfavorable_hombres,Perfil,Único arquetipo con consistencia histórica suficiente,booleano,CCPC,2015-2024,False,70751
+estado_otros_arquetipos,Perfil,Estado de los restantes arquetipos,categoría,validación histórica,2015-2024,False,70751
+fuente_perfil_electoral,Trazabilidad,Procedencia de conteos por edad y sexo,categoría,pipeline,2024,False,70751
+fuente_caracteristicas_eceg,Trazabilidad,Procedencia de variables ECEG,categoría,INEGI ECEG,2020,False,70751
+fuente_evidencia_arquetipo,Trazabilidad,Procedencia efectiva para arquetipos,categoría,pipeline,2024,False,70751
+score_riesgo_experimental_caida_2pp,Riesgo,Score del clasificador; no es probabilidad externamente validada,proporción,modelo de riesgo,2027,True,65095
+categoria_score_riesgo_experimental,Riesgo,"Corte p80 inclusivo sobre A/B, conserva empates",categoría,derivado,2027,False,70751
+estado_validacion_score_riesgo,Riesgo,Alcance de validación del score,categoría,validación histórica,2027,False,70751
+clase_confianza_geografica,Trazabilidad,Clase A/B/C/D de comparabilidad,categoría,armonización,2024,False,70751
+estado_geografia_pronostico,Trazabilidad,Certificación temporal de la geografía,categoría,pipeline,2027,False,70751
+version_modelo,Trazabilidad,Versión reproducible del pipeline,texto,configuración,2026,False,70751
+fecha_generacion,Trazabilidad,Fecha de generación del handoff,fecha ISO,configuración,2026,False,70751
+anio_objetivo,Trazabilidad,Año electoral objetivo,año,configuración,2027,False,70751
+tipo_eleccion_objetivo,Trazabilidad,Familia de elección objetivo,categoría,configuración,2027,False,70751
+version_geografica,Trazabilidad,Snapshot territorial utilizado,categoría,pipeline,2024,False,70751
+fuente_principal,Trazabilidad,Fuentes agregadas principales,texto,manifiesto,2009-2024,False,70751
+alcance_validacion,Trazabilidad,Indica que el backtest es de desarrollo,categoría,validación,2018-2024,False,70751
+limitaciones_relevantes,Trazabilidad,Advertencias materiales por sección,texto,pipeline corregido,2027,False,70751

@@ -1,0 +1,8 @@
+{
+  "reference_population": 65095,
+  "threshold": 0.4457185141782025,
+  "selected_sections": 14821,
+  "selected_share": 0.22768261771257392,
+  "ties_at_threshold": 3867,
+  "quantile": 0.8
+}
