@@ -1,6 +1,9 @@
 dash>=3.2,<4
+dash-extensions>=2,<3
 dash-leaflet>=1.1,<2
-geopandas>=1.1,<2
+flask>=3,<4
+gunicorn>=23,<24
+numpy>=2,<3
 pandas>=2.2,<3
 plotly>=6.3,<7
 pyarrow>=17,<22

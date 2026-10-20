@@ -2,21 +2,30 @@
 
 from __future__ import annotations
 
+import json
+import logging
 import math
 import os
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 import dash_leaflet as dl
 from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
 from dash_extensions.javascript import Namespace
+from flask import Response, jsonify, stream_with_context
 
 from dashboard.data_layer import (
     ALL_PROFILES,
     PROFILE_LABELS,
     SOCIO_METRICS,
     build_payload,
+    density_selection_count,
+    export_selection_csv_stream,
     load_sections,
+    normalize_density_percent,
+    normalize_security_percent,
+    security_target_count,
 )
 from dashboard.figures import (
     ORANGE,
@@ -32,6 +41,17 @@ from dashboard.state import resolve_selection
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "dashboard" / "assets"
+RELEASE_POINTER = ROOT / "dashboard" / "data" / "current_release.json"
+CURRENT_RELEASE = (
+    json.loads(RELEASE_POINTER.read_text(encoding="utf-8"))
+    if RELEASE_POINTER.exists()
+    else {
+        "dashboard_release_version": "working-copy",
+        "model_version": "radar27-final-2027-municipal.1",
+        "asset_prefix": "/assets",
+    }
+)
+ASSET_PREFIX = str(CURRENT_RELEASE["asset_prefix"])
 MEXICO_BOUNDS = [[14.2, -118.8], [33.4, -86.4]]
 PROFILE_COLORS = {
     "P1": WINE,
@@ -40,7 +60,8 @@ PROFILE_COLORS = {
     "P4": ORANGE,
     "P5": SAND,
     "P6": "#EDE0C7",
-    "EI": "#F4F3F1",
+    "EI_AB": "#F4C95D",
+    "EI_CD": "#FBE9AF",
 }
 
 MAP_JS = Namespace("dashboardMap")
@@ -52,6 +73,61 @@ app = Dash(
     update_title="Actualizando…",
 )
 server = app.server
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=os.environ.get("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+
+
+@server.get("/healthz")
+def healthz() -> Any:
+    """Sonda ligera: no fuerza la carga del Parquet ni de las geometrías."""
+    return jsonify(
+        status="ok",
+        release=CURRENT_RELEASE["dashboard_release_version"],
+        model=CURRENT_RELEASE["model_version"],
+    )
+
+
+@server.get("/download/sections.csv")
+def download_sections_csv() -> Response:
+    from flask import request
+
+    profiles = [value for value in request.args.get("profiles", "").split(",") if value]
+    density = normalize_density_percent(request.args.get("density", 100))
+    security = normalize_security_percent(request.args.get("security", 100))
+    chunks, count = export_selection_csv_stream(profiles, density, security)
+    logger.info(
+        "csv_export_started rows=%s density=%s security=%s profiles=%s",
+        count,
+        density,
+        security,
+        profiles,
+    )
+    filename = f"radar27_secciones_seleccionadas_{count}.csv"
+
+    def logged_chunks() -> Any:
+        try:
+            yield from chunks
+        except GeneratorExit:
+            logger.info("csv_export_cancelled rows=%s", count)
+            raise
+        except Exception:
+            logger.exception("csv_export_failed rows=%s", count)
+            raise
+        else:
+            logger.info("csv_export_completed rows=%s", count)
+
+    return Response(
+        stream_with_context(logged_chunks()),
+        mimetype="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 def _format_percent(value: Any) -> str:
@@ -79,7 +155,7 @@ def _missing(value: Any) -> bool:
 
 
 def _profile_options() -> list[dict[str, Any]]:
-    counts = load_sections()["perfil_electoral_id"].value_counts().to_dict()
+    counts = load_sections()["perfil_visual_id"].value_counts().to_dict()
     options = []
     for profile in ALL_PROFILES:
         options.append(
@@ -93,7 +169,7 @@ def _profile_options() -> list[dict[str, Any]]:
                         ),
                         html.Span(
                             [
-                                html.Strong(profile),
+                                html.Strong("EI" if profile.startswith("EI_") else profile),
                                 html.Span(
                                     f" — {PROFILE_LABELS[profile]}", className="profile-name"
                                 ),
@@ -150,7 +226,7 @@ def _profile_distribution(counts: dict[str, int], total: int) -> html.Div:
                                 className="mini-dot",
                                 style={"backgroundColor": PROFILE_COLORS[profile]},
                             ),
-                            html.Span(profile),
+                            html.Span(profile.replace("EI_", "EI-") if profile.startswith("EI_") else profile),
                             html.Span(f"{count:,}", className="mini-count"),
                         ],
                         className="mini-label",
@@ -173,11 +249,18 @@ def _profile_distribution(counts: dict[str, int], total: int) -> html.Div:
 
 def _aggregate_panel(payload: dict[str, Any]) -> html.Div:
     if payload["empty"]:
+        profiles_empty = payload["empty_reason"] == "profiles"
         return html.Div(
             [
                 html.Div("∅", className="empty-symbol"),
-                html.H3("No hay perfiles activos"),
-                html.P("Selecciona al menos un perfil para recuperar el mapa y los agregados."),
+                html.H3(
+                    "No hay perfiles activos" if profiles_empty else "No hay secciones visibles"
+                ),
+                html.P(
+                    "Selecciona al menos un perfil para recuperar el mapa y los agregados."
+                    if profiles_empty
+                    else "Aumenta el porcentaje de densidad para recuperar secciones."
+                ),
             ],
             className="empty-panel",
         )
@@ -188,7 +271,7 @@ def _aggregate_panel(payload: dict[str, Any]) -> html.Div:
                     html.Span("Vista agregada", className="eyebrow"),
                     html.H2("Resumen del conjunto activo"),
                     html.P(
-                        "Los totales dependen de los perfiles seleccionados, no del zoom del mapa.",
+                        "Los totales dependen de los filtros activos, no del zoom del mapa.",
                         className="muted",
                     ),
                 ]
@@ -225,6 +308,7 @@ def _aggregate_panel(payload: dict[str, Any]) -> html.Div:
             _coverage_row("Proyección", payload["coverage"]["projection"]),
             _coverage_row("Edad y sexo electoral", payload["coverage"]["electoral_demography"]),
             _coverage_row("Demografía ECEG", payload["coverage"]["eceg"]),
+            _coverage_row("Incidencia municipal", payload["coverage"]["security"]),
         ],
         className="context-panel-body",
     )
@@ -236,7 +320,7 @@ def _detail_row(label: str, value: str) -> html.Div:
 
 def _section_panel(payload: dict[str, Any]) -> html.Div:
     row = payload["section"]
-    profile = str(row["perfil_electoral_id"])
+    profile = str(row["perfil_visual_id"])
     return html.Div(
         [
             html.Div(
@@ -253,7 +337,11 @@ def _section_panel(payload: dict[str, Any]) -> html.Div:
                                 className="profile-dot",
                                 style={"backgroundColor": PROFILE_COLORS[profile]},
                             ),
-                            html.Strong(f"{profile} — {PROFILE_LABELS[profile]}"),
+                            html.Strong(
+                                f"EI — {PROFILE_LABELS[profile]}"
+                                if profile.startswith("EI_")
+                                else f"{profile} — {PROFILE_LABELS[profile]}"
+                            ),
                         ],
                         className="selected-profile",
                     ),
@@ -295,9 +383,37 @@ def _section_panel(payload: dict[str, Any]) -> html.Div:
                     ),
                     _detail_row("Fallback utilizado", _format_bool(row.get("uso_fallback"))),
                     _detail_row("Fuente 2027", _label(row.get("fuente_proyeccion_2027"))),
+                    _detail_row(
+                        "Incidencia municipal 2025",
+                        "No disponible"
+                        if _missing(row.get("tasa_incidencia_total_100k"))
+                        else f"{float(row['tasa_incidencia_total_100k']):,.1f} por 100 mil",
+                    ),
+                    _detail_row(
+                        "Nivel del indicador de seguridad", "Municipal asignado a la sección"
+                    ),
                 ],
                 className="detail-list",
             ),
+            html.Div(
+                [
+                    html.Strong("Evidencia insuficiente"),
+                    html.Span(
+                        row.get("motivo_evidencia_insuficiente")
+                        if profile.startswith("EI_")
+                        else "La evidencia insuficiente no implica que una sección carezca de importancia o prioridad. Indica que no disponemos de información suficiente o comparable para asignarle uno de los seis perfiles electorales."
+                    ),
+                    html.Span(
+                        f"Años disponibles: {row.get('anios_historia_disponibles') or 'ninguno'}; "
+                        f"faltantes: {row.get('anios_historia_faltantes') or 'ninguno'}."
+                    )
+                    if profile.startswith("EI_")
+                    else None,
+                ],
+                className="note-box",
+            )
+            if profile.startswith("EI_")
+            else None,
             html.Div(
                 [
                     html.Strong("Lectura responsable"),
@@ -362,7 +478,9 @@ app.layout = html.Div(
                 ),
                 html.Div(
                     [
-                        html.Span("Proyección central · Modelo A"),
+                        html.Span(
+                            f"Proyección central · A_nacional_actual · {CURRENT_RELEASE['model_version']}"
+                        ),
                         html.Span("Snapshot territorial 09·05·2024"),
                     ],
                     className="header-meta",
@@ -426,6 +544,173 @@ app.layout = html.Div(
                                     ],
                                     className="sidebar-note",
                                 ),
+                                html.Div(
+                                    [
+                                        html.Div(
+                                            [
+                                                html.Div(
+                                                    [
+                                                        html.Strong("Densidad de viviendas"),
+                                                        html.Span(
+                                                            "ⓘ",
+                                                            title=(
+                                                                "La densidad se calcula como viviendas "
+                                                                "particulares habitadas por km². El porcentaje "
+                                                                "identifica las secciones más densas del universo "
+                                                                "nacional con información válida."
+                                                            ),
+                                                            className="density-help",
+                                                        ),
+                                                    ],
+                                                    className="density-title",
+                                                ),
+                                                html.Span(
+                                                    "Porcentaje de secciones más densas",
+                                                    className="density-subtitle",
+                                                ),
+                                            ]
+                                        ),
+                                        html.Strong(
+                                            "100%", id="density-value", className="density-value"
+                                        ),
+                                        dcc.Slider(
+                                            id="density-filter",
+                                            min=1,
+                                            max=100,
+                                            step=1,
+                                            value=100,
+                                            marks={
+                                                10: "10%",
+                                                25: "25%",
+                                                50: "50%",
+                                                66: "66%",
+                                                100: "100%",
+                                            },
+                                            updatemode="drag",
+                                            tooltip={"placement": "bottom"},
+                                            className="density-slider",
+                                        ),
+                                        html.Div(
+                                            [
+                                                html.Button(
+                                                    f"{value}%",
+                                                    id=f"density-quick-{value}",
+                                                    n_clicks=0,
+                                                    className="button button-small button-quiet",
+                                                )
+                                                for value in (10, 25, 50, 66, 100)
+                                            ],
+                                            className="percent-shortcuts",
+                                        ),
+                                        html.P(
+                                            "Mostrando el 100% de las secciones con mayor densidad de viviendas",
+                                            id="density-description",
+                                            className="density-description",
+                                        ),
+                                        html.Strong(
+                                            "70,751 secciones visibles",
+                                            id="density-visible",
+                                            className="density-visible",
+                                        ),
+                                        html.Span(
+                                            "Filtro desactivado; se incluyen secciones sin densidad válida.",
+                                            id="density-threshold",
+                                            className="density-threshold",
+                                        ),
+                                    ],
+                                    className="density-control",
+                                ),
+                                html.Div(
+                                    [
+                                        html.Div(
+                                            [
+                                                html.Div(
+                                                    [
+                                                        html.Strong("Incidencia delictiva"),
+                                                        html.Span(
+                                                            "ⓘ",
+                                                            title=(
+                                                                "Tasa municipal anual de delitos registrados por "
+                                                                "100,000 habitantes, asignada como contexto a las "
+                                                                "secciones. No mide directamente la seguridad de "
+                                                                "cada sección."
+                                                            ),
+                                                            className="density-help",
+                                                        ),
+                                                    ],
+                                                    className="density-title",
+                                                ),
+                                                html.Span(
+                                                    "Porcentaje de secciones con menor incidencia registrada",
+                                                    className="density-subtitle",
+                                                ),
+                                            ]
+                                        ),
+                                        html.Strong(
+                                            "100%", id="security-value", className="density-value"
+                                        ),
+                                        dcc.Slider(
+                                            id="security-filter",
+                                            min=1,
+                                            max=100,
+                                            step=1,
+                                            value=100,
+                                            marks={10: "10%", 25: "25%", 50: "50%", 66: "66%", 100: "100%"},
+                                            updatemode="drag",
+                                            tooltip={"placement": "bottom"},
+                                            className="density-slider security-slider",
+                                        ),
+                                        html.Div(
+                                            [
+                                                html.Button(
+                                                    f"{value}%",
+                                                    id=f"security-quick-{value}",
+                                                    n_clicks=0,
+                                                    className="button button-small button-quiet",
+                                                )
+                                                for value in (10, 25, 50, 66, 100)
+                                            ],
+                                            className="percent-shortcuts",
+                                        ),
+                                        html.P(
+                                            "Filtro desactivado: 100% del universo",
+                                            id="security-description",
+                                            className="density-description",
+                                        ),
+                                        html.Strong(
+                                            "70,751 secciones visibles",
+                                            id="security-visible",
+                                            className="density-visible",
+                                        ),
+                                        html.Span(
+                                            "Se incluyen secciones sin indicador municipal.",
+                                            id="security-threshold",
+                                            className="density-threshold",
+                                        ),
+                                    ],
+                                    className="density-control",
+                                ),
+                                html.Div(
+                                    [
+                                        html.Strong("0 secciones seleccionadas", id="export-count"),
+                                        html.A(
+                                            "Descargar secciones seleccionadas (.csv)",
+                                            id="download-selection",
+                                            href=(
+                                                "/download/sections.csv?"
+                                                + urlencode(
+                                                    {
+                                                        "profiles": ",".join(ALL_PROFILES),
+                                                        "density": 100,
+                                                        "security": 100,
+                                                    }
+                                                )
+                                            ),
+                                            className="button export-button",
+                                        ),
+                                    ],
+                                    className="export-control",
+                                ),
                             ],
                             className="filter-panel panel",
                         ),
@@ -462,7 +747,7 @@ app.layout = html.Div(
                                     [
                                         dl.GeoJSON(
                                             id="section-geo",
-                                            url="/assets/sections_overview.fgb",
+                                            url=f"{ASSET_PREFIX}/sections_overview.fgb",
                                             format="flatgeobuf",
                                             formatOptions={
                                                 "rect": {
@@ -481,13 +766,17 @@ app.layout = html.Div(
                                             },
                                             hideout={
                                                 "activeProfiles": ALL_PROFILES,
+                                                "densityEnabled": False,
+                                                "densityLimit": density_selection_count(100),
+                                                "securityEnabled": False,
+                                                "securityLimit": security_target_count(100),
                                                 "selected": None,
                                                 "colors": PROFILE_COLORS,
                                             },
                                             zoomToBounds=False,
                                         ),
                                         dl.GeoJSON(
-                                            url="/assets/state_boundaries.geojson",
+                                            url=f"{ASSET_PREFIX}/state_boundaries.geojson",
                                             interactive=False,
                                             style={
                                                 "color": "#4C4947",
@@ -590,36 +879,63 @@ app.layout = html.Div(
 
 @app.callback(
     Output("profile-filter", "value"),
+    Output("density-filter", "value"),
+    Output("security-filter", "value"),
     Input("select-all", "n_clicks"),
     Input("clear-profiles", "n_clicks"),
     Input("restore-profiles", "n_clicks"),
+    *[Input(f"density-quick-{value}", "n_clicks") for value in (10, 25, 50, 66, 100)],
+    *[Input(f"security-quick-{value}", "n_clicks") for value in (10, 25, 50, 66, 100)],
     prevent_initial_call=True,
 )
-def update_profile_buttons(select_all: int, clear: int, restore: int) -> list[str]:
-    del select_all, clear, restore
+def update_profile_buttons(*clicks: int) -> tuple[list[str] | Any, int | Any, int | Any]:
+    del clicks
+    trigger = str(ctx.triggered_id)
     if ctx.triggered_id == "clear-profiles":
-        return []
-    return ALL_PROFILES
+        return [], no_update, no_update
+    if ctx.triggered_id == "restore-profiles":
+        return ALL_PROFILES, 100, 100
+    if trigger.startswith("density-quick-"):
+        return no_update, int(trigger.rsplit("-", 1)[1]), no_update
+    if trigger.startswith("security-quick-"):
+        return no_update, no_update, int(trigger.rsplit("-", 1)[1])
+    return ALL_PROFILES, no_update, no_update
 
 
 @app.callback(
     Output("selected-section", "data"),
     Output("section-geo", "hideout"),
     Input("profile-filter", "value"),
+    Input("density-filter", "value"),
+    Input("security-filter", "value"),
     Input("section-geo", "clickData"),
     Input("clear-selection", "n_clicks"),
     State("selected-section", "data"),
 )
 def update_selection(
     active_profiles: list[str] | None,
+    density_percent: int | None,
+    security_percent: int | None,
     click_data: dict[str, Any] | None,
     clear_clicks: int,
     current_selection: str | None,
 ) -> tuple[str | None, dict[str, Any]]:
     del clear_clicks
     active = active_profiles or []
-    selected = resolve_selection(ctx.triggered_id, active, click_data, current_selection)
-    return selected, {"activeProfiles": active, "selected": selected, "colors": PROFILE_COLORS}
+    percent = normalize_density_percent(density_percent)
+    safety_percent = normalize_security_percent(security_percent)
+    selected = resolve_selection(
+        ctx.triggered_id, active, click_data, current_selection, percent, safety_percent
+    )
+    return selected, {
+        "activeProfiles": active,
+        "densityEnabled": percent < 100,
+        "densityLimit": density_selection_count(percent),
+        "securityEnabled": safety_percent < 100,
+        "securityLimit": security_target_count(safety_percent),
+        "selected": selected,
+        "colors": PROFILE_COLORS,
+    }
 
 
 @app.callback(
@@ -629,7 +945,11 @@ def update_selection(
     Input("mexico-map", "bounds"),
 )
 def update_geometry_source(zoom: float | None, bounds: Any) -> tuple[str, dict[str, Any]]:
-    url = "/assets/sections_detail.fgb" if (zoom or 4) >= 7 else "/assets/sections_overview.fgb"
+    url = (
+        f"{ASSET_PREFIX}/sections_detail.fgb"
+        if (zoom or 4) >= 7
+        else f"{ASSET_PREFIX}/sections_overview.fgb"
+    )
     rect = {"minX": -118.8, "minY": 14.2, "maxX": -86.4, "maxY": 33.4}
     if isinstance(bounds, (list, tuple)) and len(bounds) == 2:
         try:
@@ -666,16 +986,31 @@ def reset_map_view(n_clicks: int) -> dict[str, Any] | Any:
     Output("mode-badge", "children"),
     Output("clear-selection", "className"),
     Output("data-caption", "children"),
+    Output("density-value", "children"),
+    Output("density-description", "children"),
+    Output("density-visible", "children"),
+    Output("density-threshold", "children"),
+    Output("security-value", "children"),
+    Output("security-description", "children"),
+    Output("security-visible", "children"),
+    Output("security-threshold", "children"),
+    Output("export-count", "children"),
     Input("profile-filter", "value"),
     Input("selected-section", "data"),
     Input("socio-metric", "value"),
+    Input("density-filter", "value"),
+    Input("security-filter", "value"),
 )
 def update_dashboard(
     active_profiles: list[str] | None,
     selected_section: str | None,
     metric_id: str,
-) -> tuple[Any, Any, Any, Any, Any, str, str, str]:
-    payload = build_payload(active_profiles or [], selected_section, metric_id)
+    density_percent: int | None = 100,
+    security_percent: int | None = 100,
+) -> tuple[Any, ...]:
+    payload = build_payload(
+        active_profiles or [], selected_section, metric_id, density_percent, security_percent
+    )
     context = _section_panel(payload) if payload["mode"] == "section" else _aggregate_panel(payload)
     age = distribution_figure(payload["age"], WINE)
     sex = distribution_figure(payload["sex"], ORANGE)
@@ -683,7 +1018,7 @@ def update_dashboard(
     timeline = (
         timeline_figure(payload)
         if not payload["empty"]
-        else empty_figure("Selecciona al menos un perfil")
+        else empty_figure("No hay secciones en la selección")
     )
     mode = "Sección seleccionada" if payload["mode"] == "section" else "Vista agregada"
     clear_class = (
@@ -691,7 +1026,78 @@ def update_dashboard(
     )
     coverage = payload["socio"]["coverage"]
     caption = f"Indicador ECEG: {payload['socio']['period']} · cobertura {coverage['available']:,}/{coverage['total']:,} secciones del conjunto activo"
-    return context, age, sex, socio, timeline, mode, clear_class, caption
+    density = payload["density"]
+    percent = density["percent"]
+    density_value = f"{percent}%"
+    density_description = (
+        f"Mostrando el {percent}% de las secciones con mayor densidad de viviendas"
+    )
+    density_visible = f"{density['visible_sections']:,} secciones visibles"
+    if percent == 100:
+        threshold = "Filtro desactivado; se incluyen secciones sin densidad válida."
+    else:
+        threshold = (
+            f"Umbral mínimo: {density['threshold']:,.1f} viviendas/km² · "
+            f"{density['national_selected']:,} de {density['valid_universe']:,} válidas"
+        )
+    security = payload["security"]
+    security_value = f"{security['percent']}%"
+    if security["percent"] == 100:
+        security_description = "Filtro desactivado: 100% del universo"
+        security_threshold_text = (
+            f"Se incluyen {security['missing_sections']:,} secciones sin indicador municipal."
+        )
+    else:
+        effective = security["effective_sections"] / security["valid_universe"]
+        security_description = (
+            f"Solicitud {security['percent']}% · efectivo {effective:.1%} por empates municipales"
+        )
+        security_threshold_text = (
+            f"Umbral máximo: {security['threshold']:,.1f} delitos por 100 mil · "
+            f"{security['effective_sections']:,} secciones con indicador"
+        )
+    security_visible = f"{security['visible_sections']:,} secciones visibles"
+    export_count = f"{security['visible_sections']:,} secciones seleccionadas"
+    return (
+        context,
+        age,
+        sex,
+        socio,
+        timeline,
+        mode,
+        clear_class,
+        caption,
+        density_value,
+        density_description,
+        density_visible,
+        threshold,
+        security_value,
+        security_description,
+        security_visible,
+        security_threshold_text,
+        export_count,
+    )
+
+
+@app.callback(
+    Output("download-selection", "href"),
+    Input("profile-filter", "value"),
+    Input("density-filter", "value"),
+    Input("security-filter", "value"),
+)
+def update_download_href(
+    active_profiles: list[str] | None,
+    density_percent: int | None,
+    security_percent: int | None,
+) -> str:
+    query = urlencode(
+        {
+            "profiles": ",".join(active_profiles or []),
+            "density": normalize_density_percent(density_percent),
+            "security": normalize_security_percent(security_percent),
+        }
+    )
+    return f"/download/sections.csv?{query}"
 
 
 if __name__ == "__main__":

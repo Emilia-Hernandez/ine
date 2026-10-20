@@ -1,0 +1,72 @@
+{
+  "manifest_version": 1,
+  "input_commit": "f80516606056bab887d26be68a8452ac84e325cb",
+  "working_tree_dirty": true,
+  "handoff": "handoff/FINAL_2027_MUNICIPAL",
+  "handoff_version": "radar27-final-2027-municipal.1",
+  "geometry_source": "data/raw/public_ine/ine_secciones_2025_portal.zip",
+  "geometry_version": "snapshot_INE_2024-05-09_no_certificado_para_2027",
+  "sections": 70751,
+  "profile_counts": {
+    "P1": 2718,
+    "P2": 58,
+    "P3": 20698,
+    "P4": 7028,
+    "P5": 9955,
+    "P6": 20932,
+    "EI": 9362
+  },
+  "visual_profile_counts": {
+    "P1": 2718,
+    "P2": 58,
+    "P3": 20698,
+    "P4": 7028,
+    "P5": 9955,
+    "P6": 20932,
+    "EI_AB": 3706,
+    "EI_CD": 5656
+  },
+  "geometry_files_bytes": {
+    "overview": 20149104,
+    "detail": 53812952
+  },
+  "electoral_demography_sections": 58534,
+  "eceg_sections": 67976,
+  "density_source": "INEGI ECEG 2020 VIVPAR_HAB / INE snapshot 2024 area EPSG:6933",
+  "density_valid_sections": 58530,
+  "density_area_crs": "EPSG:6933",
+  "density_status_counts": {
+    "valid": 58530,
+    "incompatible_2020_2024_geography": 12217,
+    "invalid_eceg_value": 4
+  },
+  "security_version": "radar27-security-municipal-2025.1",
+  "security_indicator": "Tasa anual municipal de incidencia delictiva registrada por 100,000 habitantes",
+  "security_valid_sections": 70450,
+  "security_missing_sections": 301,
+  "notes": [
+    "No se recalcularon predicciones ni perfiles.",
+    "La cartografía es el snapshot INE 2024-05-09, no geometría certificada para 2027.",
+    "Las geometrías overview/detail fueron simplificadas solo para visualización.",
+    "La densidad usa sólo coincidencias directas clase A; B–D no se interpolan.",
+    "La incidencia es municipal y se asigna como contexto; no mide delitos dentro de la sección."
+  ],
+  "commands": [
+    "PYTHONPATH=src .venv/bin/python scripts/run_security_municipal.py",
+    "PYTHONPATH=src .venv/bin/python dashboard/prepare_data.py",
+    ".venv/bin/pytest -q"
+  ],
+  "versions": {
+    "python": "3.12.13",
+    "numpy": "2.5.3",
+    "pandas": "2.3.3",
+    "geopandas": "1.2.0",
+    "pyarrow": "21.0.0",
+    "shapely": "2.1.2"
+  },
+  "input_hashes": {
+    "handoff_manifest": "3bbdd3c1475177e101d5f06445268ff980e4f2f83057688a7bebe4f7c26491f7",
+    "security_manifest": "a8078e02fb5c27583e15d232439302e3f6e50e0685831acadebb3ec2f727e41b"
+  },
+  "dashboard_release_version": "radar27-dashboard-security.5"
+}

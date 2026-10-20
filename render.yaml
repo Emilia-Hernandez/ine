@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: radar27
+    runtime: python
+    plan: free
+    region: ohio
+    autoDeployTrigger: "off"
+    buildCommand: pip install --no-cache-dir -r dashboard/requirements.txt
+    startCommand: gunicorn dashboard.app:server --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 120 --access-logfile - --error-logfile -
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.13
+      - key: PYTHONUNBUFFERED
+        value: "1"
