@@ -1,0 +1,10 @@
+version: 1
+security_version: radar27-security-municipal-2025.1
+dashboard_year: 2025
+output_directory: artifacts/security/radar27-security-municipal-2025.1
+sources:
+  sesnsp: data/raw/sesnsp/Municipal-Delitos-2015-2025_sep2026.zip
+  conapo: data/raw/conapo/00_Republica_mexicana.zip
+official_urls:
+  sesnsp: https://www.gob.mx/sesnsp/acciones-y-programas/datos-abiertos-de-incidencia-delictiva
+  conapo: https://www.gob.mx/conapo/documentos/reconstruccion-y-proyecciones-de-la-poblacion-de-los-municipios-de-mexico-1990-2040

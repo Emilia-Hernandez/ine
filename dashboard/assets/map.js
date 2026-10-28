@@ -33,6 +33,84 @@ window.dashboardMap = Object.assign({}, window.dashboardMap, {
                 return false;
             }
         }
+        if (hideout.vebEnabled) {
+            const attackCount = Number(properties[hideout.vebPeriod === "24m" ? "b" : "a"]);
+            if (!(Number.isFinite(attackCount) && attackCount >= 0 && attackCount <= Number(hideout.vebThreshold))) {
+                return false;
+            }
+        }
         return true;
+    },
+    simulatorFilter: function(feature, context) {
+        const hideout = context.hideout || {};
+        const props = feature.properties || {};
+        const active = hideout.activeProfiles || [];
+        if (active.indexOf(props.p) === -1) return false;
+        if (!hideout.includeEI && String(props.p).indexOf("EI_") === 0) return false;
+        if (hideout.densityEnabled) {
+            const rank = Number(props.r);
+            if (!(Number.isFinite(rank) && rank > 0 && rank <= Number(hideout.densityLimit || 0))) return false;
+        }
+        if (hideout.securityEnabled) {
+            const rank = Number(props.s);
+            if (!(Number.isFinite(rank) && rank > 0 && rank <= Number(hideout.securityLimit || 0))) return false;
+        }
+        if (hideout.vebEnabled) {
+            const count = Number(props[hideout.vebPeriod === "24m" ? "b" : "a"]);
+            if (!(Number.isFinite(count) && count >= 0 && count <= Number(hideout.vebThreshold))) return false;
+        }
+        return true;
+    },
+    simulatorSectionStyle: function(feature, context) {
+        const props = feature.properties || {};
+        const hideout = context.hideout || {};
+        const key = String(props.k || "");
+        const selected = Boolean((hideout.assignmentLookup || {})[key]);
+        const profile = String(props.p || "");
+        const priority = (profile === "P1" || profile === "P2") ? "Alta" :
+            ((profile === "P4" || profile === "P5") ? "Baja" : "Media");
+        const priorityColors = hideout.priorityColors || {};
+        const crimeCount = Number(props[hideout.vebPeriod === "24m" ? "b" : "a"]);
+        const crimeContext = selected && Number.isFinite(crimeCount) && crimeCount > 0;
+        const fillColor = priorityColors[priority] || "#9CA3AF";
+        const fillOpacity = selected ? 0.88 : 0;
+        return {
+            color: crimeContext ? "#343A43" : "#FFFFFF",
+            weight: crimeContext ? 0.45 : (selected ? 0.55 : 0),
+            opacity: crimeContext ? 0.78 : (selected ? 0.72 : 0),
+            fillColor: fillColor,
+            fillOpacity: fillOpacity,
+            dashArray: crimeContext ? "4 3" : null
+        };
+    },
+    simulatorOnEachFeature: function(feature, layer, context) {
+        const props = feature.properties || {};
+        const hideout = (context && context.hideout) || {};
+        const key = String(props.k || "");
+        const profile = String(props.p || "");
+        const priority = (profile === "P1" || profile === "P2") ? "Alta" :
+            ((profile === "P4" || profile === "P5") ? "Baja" : "Media");
+        const assignment = (hideout.assignmentLookup || {})[key];
+        const selected = Boolean(assignment);
+        const crimeValue = Number(props[hideout.vebPeriod === "24m" ? "b" : "a"]);
+        const crimeText = crimeValue >= 0 ? String(crimeValue) : "No disponible";
+        let content = props.tooltip || ("<strong>Sección " + key + "</strong><br>Perfil: " + profile);
+        content += "<br>Prioridad operativa: " + priority;
+        content += "<br>Seleccionada: " + (selected ? "Sí" : "No");
+        if (assignment) {
+            const names = hideout.interventionNames || {};
+            content += "<br>Intervención: " + (names[String(assignment[0])] || "No disponible");
+            content += "<br>Sin intervención: " + (assignment[1] === null ? "No disponible" : Number(assignment[1]).toFixed(2) + "%");
+            if (assignment[1] !== null) {
+                content += "<br>Pesimista: +" + Number(assignment[2]).toFixed(2) + " pp → " + Number(assignment[3]).toFixed(2) + "%";
+                content += "<br>Normal: +" + Number(assignment[4]).toFixed(2) + " pp → " + Number(assignment[5]).toFixed(2) + "%";
+                content += "<br>Optimista: +" + Number(assignment[6]).toFixed(2) + " pp → " + Number(assignment[7]).toFixed(2) + "%";
+            }
+        }
+        content += "<br>Registros municipales: " + crimeText;
+        if (selected && crimeValue > 0) {
+            content += "<br><em>Sección seleccionada ubicada en un municipio con registros de crímenes electorales.</em>";
+        }
+        if (layer && layer.bindTooltip) layer.bindTooltip(content, {sticky: true, direction: "auto"});
     }
 });

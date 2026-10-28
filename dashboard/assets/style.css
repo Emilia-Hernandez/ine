@@ -44,6 +44,9 @@ button, input, select { font: inherit; }
 .header-meta span:first-child { color: var(--wine); font-weight: 700; }
 
 .app-main { padding: 18px 20px 12px; max-width: 1920px; margin: 0 auto; }
+.app-tabs { min-width: 0; padding: 0 20px; overflow-x: auto; background: #fff; border-bottom: 1px solid var(--line); }
+.app-tabs .tab { padding: 12px 18px !important; border: 0 !important; background: transparent !important; color: var(--muted); font-size: 12px; font-weight: 700; }
+.app-tabs .tab--selected { color: var(--wine) !important; border-bottom: 3px solid var(--wine) !important; }
 .panel, .chart-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); }
 .top-grid {
     display: grid;
@@ -158,6 +161,17 @@ button, input, select { font: inherit; }
 .detail-row { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 10px; }
 .detail-row span { color: var(--muted); }
 .detail-row strong { max-width: 58%; text-align: right; font-weight: 650; word-break: break-word; }
+.veb-control .density-title { line-height: 1.3; }
+.veb-period-label { display: block; margin: 12px 0 5px; color: var(--muted); font-size: 10px; font-weight: 650; }
+.veb-period-select { font-size: 10px; }
+.veb-period-select .Select-control { border-color: var(--line); }
+.veb-control .density-value { color: var(--blue); }
+.veb-slider .rc-slider-track { background-color: var(--blue); }
+.veb-slider .rc-slider-handle { border-color: var(--blue); }
+.veb-source { display: block; margin-top: 8px; color: var(--muted); font-size: 9px; line-height: 1.4; }
+.attack-summary { margin-top: 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: #f8fafb; font-size: 10px; }
+.attack-summary .detail-row { padding: 6px 0; }
+.attack-summary small { display: block; margin-top: 7px; color: var(--muted); font-size: 9px; }
 .note-box { display: flex; flex-direction: column; gap: 5px; color: var(--muted); }
 .note-box strong { color: var(--ink); }
 .empty-panel { min-height: 520px; display: grid; align-content: center; justify-items: center; text-align: center; padding: 24px; }
@@ -176,6 +190,101 @@ button, input, select { font: inherit; }
 .metric-select .Select-control { border-color: var(--line); }
 .metric-select .Select-menu-outer { z-index: 1200 !important; }
 .app-footer { display: flex; justify-content: flex-end; gap: 16px; padding: 13px 2px 2px; color: var(--muted); font-size: 9px; }
+
+/* Simulador de intervenciones: estilos aislados para no alterar el explorador. */
+.sim-main { width: 100%; max-width: 1660px; min-width: 0; margin: 0 auto; padding: 22px 20px 34px; }
+.sim-main > *, .sim-config-grid > *, .sim-coverage-panel > *, .sim-summary-grid > *, .sim-table-grid > *, .sim-bottom-grid > * { min-width: 0; }
+.sim-hero { min-width: 0; margin-bottom: 16px; }
+.sim-hero h1 { max-width: 100%; margin: 5px 0 6px; font: 680 clamp(25px, 3vw, 34px)/1.12 Georgia, serif; overflow-wrap: break-word; }
+.sim-hero p { max-width: 850px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.sim-config-grid { display: grid; grid-template-columns: minmax(300px, .72fr) minmax(560px, 1.65fr); gap: 14px; align-items: stretch; }
+.sim-config-panel, .sim-coverage-panel, .sim-results-panel, .sim-table-panel, .sim-security-panel, .sim-download-panel { min-width: 0; padding: 18px; }
+.sim-config-panel h2, .sim-coverage-panel h2, .sim-results-panel h2, .sim-map-panel h2, .sim-table-panel h2, .sim-security-panel h2, .sim-download-panel h2 { margin: 3px 0 12px; font: 650 19px/1.2 Georgia, serif; overflow-wrap: break-word; }
+.sim-label { display: block; margin: 15px 0 7px; color: #514d49; font-size: 10px; font-weight: 750; text-transform: uppercase; letter-spacing: .045em; }
+.sim-help { display: block; margin-top: 8px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.sim-profile-filter { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 10px; font-size: 10px; line-height: 1.3; }
+.sim-profile-filter label, .sim-check label { display: flex; min-width: 0; align-items: flex-start; gap: 6px; overflow-wrap: anywhere; }
+.sim-check { margin-top: 16px; font-size: 11px; font-weight: 700; }
+.sim-config-panel .Select, .sim-number-control .Select { width: 100%; min-width: 0; }
+.sim-config-panel .Select-control, .sim-number-control .Select-control { width: 100%; }
+.sim-section-header, .sim-map-header { display: flex; min-width: 0; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.sim-section-header > :first-child, .sim-map-header > :first-child { min-width: 0; }
+.sim-section-header p { max-width: 720px; margin: -5px 0 8px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.sim-segmented-bar { display: flex; width: calc(100% - 16px); min-height: 48px; margin: 14px 8px 12px; overflow: hidden; border-radius: 9px; background: #ece8e4; box-shadow: inset 0 0 0 1px rgba(0,0,0,.06); }
+.sim-segment { display: grid; place-items: center; min-width: 0; padding: 0 5px; color: #fff; font-size: 10px; font-weight: 800; white-space: nowrap; overflow: hidden; text-shadow: 0 1px 2px rgba(0,0,0,.25); }
+.sim-segment-media { color: #352d18; text-shadow: none; }
+.sim-slider-section { min-width: 0; padding: 11px 0 7px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.sim-coverage-control { min-width: 0; --priority-gradient: linear-gradient(90deg, #B42318 0%, #B42318 33%, #E7B416 33%, #E7B416 66%, #2E7D57 66%, #2E7D57 100%); }
+.sim-coverage-readout { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin: 0 8px 4px; }
+.sim-coverage-caption { color: #514d49; font-size: 10px; font-weight: 750; text-transform: uppercase; letter-spacing: .045em; }
+.sim-coverage-display { color: var(--wine); font: 680 24px/1 Georgia, serif; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sim-coverage-slider { width: calc(100% - 16px); margin: 10px 8px 2px; }
+.sim-coverage-slider .rc-slider-rail { height: 10px; background: var(--priority-gradient); opacity: 1; box-shadow: inset 0 0 0 1px rgba(0,0,0,.09); }
+.sim-coverage-slider .rc-slider-track { height: 10px; background: transparent; }
+.sim-coverage-slider .rc-slider-handle { width: 20px; height: 20px; margin-top: -5px; border: 3px solid #fff; background: var(--wine); box-shadow: 0 0 0 2px var(--wine), 0 2px 7px rgba(41,39,37,.24); }
+.sim-coverage-slider .rc-slider-mark-text { display: none; }
+.sim-coverage-boundaries { position: relative; width: calc(100% - 16px); height: 30px; margin: 0 8px; }
+.sim-boundary-label { position: absolute; top: 0; color: #5d5854; font-size: 9px; font-variant-numeric: tabular-nums; white-space: nowrap; transform: translateX(-50%); }
+.sim-boundary-endpoint { top: 14px; }
+.sim-boundary-label.start { transform: translateX(0); }
+.sim-boundary-label.end { transform: translateX(-100%); }
+.sim-parameter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: end; margin-top: 4px; }
+.sim-number-control { min-width: 0; }
+.sim-number-control input { width: 100%; max-width: 100%; min-height: 38px; padding: 7px 9px; border: 1px solid #d7d2cd; border-radius: 5px; }
+.sim-summary-grid { display: grid; grid-template-columns: minmax(250px, .8fr) minmax(360px, 1.2fr); gap: 10px; margin-top: 16px; }
+.sim-summary-block { display: flex; min-width: 0; flex-direction: column; gap: 9px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; background: #faf9f7; font-size: 10px; line-height: 1.4; }
+.sim-summary-title { font-size: 10px; text-transform: uppercase; letter-spacing: .045em; }
+.sim-selected-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.sim-selected-stat { display: flex; min-width: 0; flex-direction: column; gap: 3px; padding: 7px 8px; border-left: 3px solid #817b75; border-radius: 5px; background: #fff; }
+.sim-selected-stat span { color: var(--muted); font-size: 9px; }
+.sim-selected-stat strong { font: 650 17px/1 Georgia, serif; font-variant-numeric: tabular-nums; }
+.sim-selected-stat-high { border-color: #B42318; }
+.sim-selected-stat-medium { border-color: #E7B416; }
+.sim-selected-stat-low { border-color: #2E7D57; }
+.sim-assignment-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.sim-assignment-item { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 7px; padding: 7px 8px; border-radius: 5px; background: #fff; }
+.sim-assignment-item span { min-width: 0; color: var(--muted); font-size: 9px; line-height: 1.25; overflow-wrap: anywhere; }
+.sim-assignment-item strong { flex: 0 0 auto; font-size: 11px; font-variant-numeric: tabular-nums; }
+.sim-results-panel { margin-top: 14px; }
+.sim-results-heading h2 { margin-bottom: 15px; }
+.sim-reference-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(240px, .8fr); gap: 10px; }
+.sim-scenario-result-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.sim-result-card { min-width: 0; min-height: 110px; padding: 14px; }
+.sim-result-card .metric-label { font-size: 10px; line-height: 1.35; }
+.sim-result-card .metric-value { font-size: clamp(22px, 2.2vw, 30px); }
+.sim-result-card .metric-note { font-size: 10px; line-height: 1.35; }
+.sim-reference-grid .sim-result-card:first-child { background: #f8fafb; border-color: #d8e5e9; box-shadow: inset 0 3px 0 var(--blue); }
+.sim-scenario-card { min-width: 0; min-height: 132px; padding: 14px; }
+.sim-scenario-card .metric-label { color: var(--ink); font-size: 11px; font-weight: 760; }
+.sim-scenario-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0 9px; }
+.sim-scenario-values > div { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+.sim-scenario-values span { color: var(--muted); font-size: 9px; line-height: 1.3; }
+.sim-scenario-values strong { font: 660 clamp(18px, 1.8vw, 24px)/1.05 Georgia, serif; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sim-scenario-card .metric-note { font-size: 10px; line-height: 1.35; }
+.sim-scenario-card-central { background: #f7f0f2; border-color: #dcbac7; box-shadow: inset 0 3px 0 var(--wine); }
+.sim-map-panel { min-width: 0; margin-top: 14px; overflow: hidden; }
+.sim-map-header { padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.sim-map { width: 100%; min-width: 0; height: clamp(430px, 55vw, 620px); min-height: 430px; }
+.sim-map-legend { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 9px 18px; padding: 11px 15px; border-top: 1px solid var(--line); background: #fbfaf8; color: var(--muted); font-size: 9px; }
+.sim-legend-item { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.sim-legend-swatch { display: inline-block; width: 18px; height: 12px; flex: 0 0 auto; border: 1px solid rgba(49,45,42,.3); border-radius: 3px; }
+.sim-legend-high { background: #B42318; }
+.sim-legend-medium { background: #E7B416; }
+.sim-legend-low { background: #2E7D57; }
+.sim-legend-empty { background: transparent; border-color: #a8a39e; }
+.sim-legend-crime { background: #E7B416; border: 1px dashed #343A43; }
+.sim-table-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 14px; margin-top: 14px; }
+.sim-table-panel > div:last-child { max-width: 100%; }
+.sim-bottom-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); gap: 14px; margin-top: 14px; }
+.sim-security-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.sim-security-metrics > div { display: flex; min-width: 0; flex-direction: column; gap: 4px; padding: 10px; border-radius: 7px; background: #f8fafb; }
+.sim-security-metrics strong { font: 650 22px/1 Georgia, serif; color: var(--blue); }
+.sim-security-metrics span { color: var(--muted); font-size: 9px; line-height: 1.35; overflow-wrap: anywhere; }
+.sim-download-panel { display: flex; min-width: 0; flex-direction: column; gap: 10px; }
+.sim-download-panel h2 { margin-bottom: 2px; }
+.sim-download-panel .button { width: 100%; padding: 10px; white-space: normal; }
+.sim-method-note { min-width: 0; margin-top: 14px; padding: 15px 18px; border: 1px solid #ded7d0; border-radius: 9px; background: #f7f4f1; font-size: 11px; line-height: 1.5; }
+.sim-method-note p { margin: 5px 0 0; color: var(--muted); }
 
 @media (min-width: 721px) {
     .filter-panel {
@@ -198,12 +307,21 @@ button, input, select { font: inherit; }
     .app-main { padding-inline: 12px; }
 }
 
+@media (max-width: 1180px) {
+    .sim-config-grid { grid-template-columns: minmax(0, 1fr); }
+    .sim-config-panel, .sim-coverage-panel { width: 100%; }
+}
+
 @media (max-width: 1020px) {
     .top-grid { grid-template-columns: 220px 1fr; }
     .context-panel { grid-column: 1 / -1; }
     .context-panel-body { display: block; }
     .charts-grid { grid-template-columns: 1fr 1fr; }
     .chart-wide { grid-column: 1 / -1; }
+    .sim-table-grid, .sim-bottom-grid { grid-template-columns: minmax(0, 1fr); }
+    .sim-summary-grid { grid-template-columns: minmax(0, 1fr); }
+    .sim-reference-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .sim-map { height: clamp(460px, 68vw, 560px); }
 }
 
 @media (max-width: 720px) {
@@ -216,4 +334,25 @@ button, input, select { font: inherit; }
     .map-header, .app-footer { align-items: flex-start; flex-direction: column; }
     .chart-header { flex-direction: column; }
     .metric-select { width: 100%; }
+    .app-tabs { padding-inline: 8px; }
+    .app-tabs .tab { flex: 0 0 auto; padding-inline: 13px !important; white-space: nowrap; }
+    .sim-main { max-width: 100%; padding: 18px 12px 28px; }
+    .sim-hero h1 { font-size: clamp(24px, 8vw, 30px); }
+    .sim-section-header, .sim-map-header { flex-direction: column; }
+    .sim-parameter-grid, .sim-summary-grid, .sim-reference-grid, .sim-scenario-result-grid, .sim-security-metrics { grid-template-columns: minmax(0, 1fr); }
+    .sim-selected-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .sim-assignment-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .sim-profile-filter { grid-template-columns: 1fr; }
+    .sim-map { height: 440px; min-height: 440px; }
+    .sim-segmented-bar { min-height: 42px; }
+    .sim-segment { font-size: 9px; }
+    .sim-coverage-readout { align-items: flex-start; flex-direction: column; gap: 4px; }
+}
+
+@media (max-width: 430px) {
+    .sim-config-panel, .sim-coverage-panel, .sim-results-panel, .sim-table-panel, .sim-security-panel, .sim-download-panel { padding: 14px; }
+    .sim-assignment-summary { grid-template-columns: minmax(0, 1fr); }
+    .sim-coverage-slider .rc-slider-mark-text { font-size: 8px; }
+    .sim-map-header { padding: 14px; }
+    .sim-map-legend { padding-inline: 12px; }
 }

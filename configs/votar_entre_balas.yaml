@@ -1,0 +1,24 @@
+version: 1
+dataset_version: radar27-votar-entre-balas-2026-10-24.1
+cutoff_date: 2026-10-24
+downloaded_at_utc: "2026-10-24T18:13:34Z"
+output_directory: artifacts/security/radar27-votar-entre-balas-2026-10-24.1
+source_manifest: data/manifests/votar_entre_balas_source_manifest.json
+sources:
+  official_page: https://votarentrebalas.datacivica.org/datos-votar-entre-balas
+  download_url: https://votarentrebalas.datacivica.org/app/download_zip
+  zip: data/raw/votar_entre_balas/2026-10-24/Datos_votar_entre_balas.zip
+  csv: data/raw/votar_entre_balas/2026-10-24/political_violence.csv
+  dictionary: data/raw/votar_entre_balas/2026-10-24/Diccionario-datos.pdf
+  methodology: data/raw/votar_entre_balas/2026-10-24/Metodologia.pdf
+  ine_inegi_crosswalk: data/interim/inegi/eceg_2020/catalogos/cat_municipios_2020_INEGI-INE-ECEG.xlsx
+  section_universe: handoff/FINAL_2027_MUNICIPAL/SECCIONES_ELECTORALES_2027.csv
+historical_cutoffs:
+  - label: election_2018
+    date: 2018-04-30
+  - label: election_2021
+    date: 2021-04-30
+  - label: election_2024
+    date: 2024-04-30
+  - label: forecast_2027
+    date: 2026-10-24

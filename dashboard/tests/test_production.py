@@ -8,7 +8,7 @@ def test_healthz_reports_frozen_release() -> None:
     assert response.status_code == 200
     assert response.json == {
         "status": "ok",
-        "release": "radar27-dashboard-security.5",
+        "release": "radar27-dashboard-intervention-simulator.1",
         "model": "radar27-final-2027-municipal.1",
     }
     assert CURRENT_RELEASE["model_id"] == "A_nacional_actual"
@@ -26,7 +26,7 @@ def test_download_endpoint_streams_full_contract() -> None:
         assert response.status_code == 200
         assert response.headers["Content-Disposition"].startswith("attachment;")
         assert "Content-Length" not in response.headers
-        assert len(header) == 164
+        assert len(header) == 180
         assert header[-1] == "metadatos_filtros_json"
         assert "did_not_vote_2009" in header
         assert "unspecified_2024" in header

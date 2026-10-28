@@ -18,8 +18,10 @@ tmp/
 # históricos permanecen locales y no se incorporan por accidente a Render.
 dashboard/data/releases/*
 !dashboard/data/releases/radar27-dashboard-security.5/
+!dashboard/data/releases/radar27-dashboard-intervention-simulator.1/
 dashboard/assets/releases/*
 !dashboard/assets/releases/radar27-dashboard-security.5/
+!dashboard/assets/releases/radar27-dashboard-intervention-simulator.1/
 
 # Los datos oficiales y las ejecuciones auditadas se regeneran mediante los notebooks.
 data/raw/

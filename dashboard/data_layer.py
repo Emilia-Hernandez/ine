@@ -5,6 +5,7 @@ from __future__ import annotations
 import gc
 import json
 import math
+import os
 import threading
 from collections.abc import Iterator
 from datetime import UTC, datetime
@@ -22,6 +23,8 @@ RELEASE_POINTER = ROOT / "dashboard" / "data" / "current_release.json"
 
 
 def _data_path() -> Path:
+    if os.environ.get("RADAR27_DASHBOARD_WORKING_COPY") == "1":
+        return ROOT / "dashboard" / "data" / "dashboard_sections.parquet"
     if RELEASE_POINTER.exists():
         release = json.loads(RELEASE_POINTER.read_text(encoding="utf-8"))
         return ROOT / str(release["data_file"])
@@ -63,6 +66,21 @@ RUNTIME_COLUMNS = [
     "density_rank",
     "tasa_incidencia_total_100k",
     "security_rank_start",
+    "inegi_municipality_keys",
+    "veb_data_status",
+    "municipal_attacks_cumulative",
+    "municipal_attacks_12m",
+    "municipal_attacks_24m",
+    "municipal_attacks_2025",
+    "municipal_attacks_2026",
+    "territorial_attacks_all_levels_cumulative",
+    "territorial_attacks_all_levels_12m",
+    "territorial_attacks_all_levels_24m",
+    "territorial_attacks_all_levels_2025",
+    "territorial_attacks_all_levels_2026",
+    "veb_cutoff_date",
+    "veb_dataset_version",
+    "veb_geography_level",
     *[column for year in YEARS for column in (f"voted_{year}", f"denom_{year}")],
     "female_identified_2024",
     "male_identified_2024",
@@ -90,6 +108,23 @@ RUNTIME_COLUMNS = [
     "eceg_dwellings_with_internet",
     "eceg_average_schooling",
 ]
+OPTIONAL_VEB_COLUMNS = {
+    "inegi_municipality_keys",
+    "veb_data_status",
+    "municipal_attacks_cumulative",
+    "municipal_attacks_12m",
+    "municipal_attacks_24m",
+    "municipal_attacks_2025",
+    "municipal_attacks_2026",
+    "territorial_attacks_all_levels_cumulative",
+    "territorial_attacks_all_levels_12m",
+    "territorial_attacks_all_levels_24m",
+    "territorial_attacks_all_levels_2025",
+    "territorial_attacks_all_levels_2026",
+    "veb_cutoff_date",
+    "veb_dataset_version",
+    "veb_geography_level",
+}
 
 PROFILE_LABELS = {
     "P1": "Deterioro persistente",
@@ -172,10 +207,22 @@ SOCIO_METRICS = {
     },
 }
 
+VEB_COLUMNS = {
+    "cumulative": "municipal_attacks_cumulative",
+    "24m": "municipal_attacks_24m",
+}
+
 
 @lru_cache(maxsize=1)
 def load_sections() -> pd.DataFrame:
-    frame = pd.read_parquet(DATA_PATH, columns=RUNTIME_COLUMNS, dtype_backend="pyarrow")
+    available = set(pq.ParquetFile(DATA_PATH).schema.names)
+    missing_required = set(RUNTIME_COLUMNS) - available - OPTIONAL_VEB_COLUMNS
+    if missing_required:
+        raise ValueError(f"La capa del dashboard carece de columnas: {sorted(missing_required)}")
+    columns = [column for column in RUNTIME_COLUMNS if column in available]
+    frame = pd.read_parquet(DATA_PATH, columns=columns, dtype_backend="pyarrow")
+    for column in OPTIONAL_VEB_COLUMNS - available:
+        frame[column] = pd.NA
     frame = frame.set_index("clave_seccion", drop=False)
     if len(frame) != 70_751 or not frame.index.is_unique:
         raise ValueError("La capa del dashboard no conserva el universo seccional esperado")
@@ -282,11 +329,52 @@ def security_effective_count(security_percent: Any) -> int:
     return int(_security_mask(load_sections(), percent).sum())
 
 
+def normalize_veb_period(period: Any) -> str:
+    return str(period) if period in VEB_COLUMNS else "cumulative"
+
+
+@lru_cache(maxsize=2)
+def veb_max(period: str = "cumulative") -> int:
+    values = load_sections()[VEB_COLUMNS[normalize_veb_period(period)]]
+    maximum = values.max(skipna=True)
+    return 0 if pd.isna(maximum) else int(maximum)
+
+
+def normalize_veb_threshold(period: Any, value: Any) -> int:
+    maximum = veb_max(normalize_veb_period(period))
+    try:
+        return min(maximum, max(0, int(float(value))))
+    except (TypeError, ValueError):
+        return maximum
+
+
+def veb_filter_enabled(period: Any, threshold: Any) -> bool:
+    period = normalize_veb_period(period)
+    maximum = veb_max(period)
+    limit = normalize_veb_threshold(period, threshold)
+    if maximum == 0:
+        return bool(load_sections()[VEB_COLUMNS[period]].notna().any())
+    return limit < maximum
+
+
+def _veb_mask(frame: pd.DataFrame, period: Any, threshold: Any) -> pd.Series:
+    period = normalize_veb_period(period)
+    limit = normalize_veb_threshold(period, threshold)
+    # Si hay ataques positivos, el máximo es neutro; un conjunto sólo de ceros
+    # conserva la distinción entre cero registrado y municipio sin dato.
+    if not veb_filter_enabled(period, limit):
+        return pd.Series(True, index=frame.index)
+    values = frame[VEB_COLUMNS[period]]
+    return values.notna() & values.le(limit)
+
+
 def select_frame(
     active_profiles: list[str],
     selected_id: str | None = None,
     density_percent: Any = 100,
     security_percent: Any = 100,
+    veb_period: Any = "cumulative",
+    veb_threshold: Any = None,
 ) -> pd.DataFrame:
     frame = load_sections()
     active = [profile for profile in active_profiles if profile in ALL_PROFILES]
@@ -298,6 +386,7 @@ def select_frame(
             str(row.iloc[0]["perfil_visual_id"]) not in active
             or not bool(_density_mask(row, density_percent).iloc[0])
             or not bool(_security_mask(row, security_percent).iloc[0])
+            or not bool(_veb_mask(row, veb_period, veb_threshold).iloc[0])
         ):
             return frame.iloc[0:0]
         return row
@@ -306,12 +395,14 @@ def select_frame(
         and set(active) == set(ALL_PROFILES)
         and normalize_density_percent(density_percent) == 100
         and normalize_security_percent(security_percent) == 100
+        and not veb_filter_enabled(veb_period, veb_threshold)
     ):
         return frame
     return frame.loc[
         frame["perfil_visual_id"].isin(active)
         & _density_mask(frame, density_percent)
         & _security_mask(frame, security_percent)
+        & _veb_mask(frame, veb_period, veb_threshold)
     ]
 
 
@@ -377,14 +468,18 @@ def build_payload(
     metric_id: str = "internet",
     density_percent: Any = 100,
     security_percent: Any = 100,
+    veb_period: Any = "cumulative",
+    veb_threshold: Any = None,
 ) -> dict[str, Any]:
     percent = normalize_density_percent(density_percent)
     safety_percent = normalize_security_percent(security_percent)
-    frame = select_frame(active_profiles, selected_id, percent, safety_percent)
+    period = normalize_veb_period(veb_period)
+    attack_limit = normalize_veb_threshold(period, veb_threshold)
+    frame = select_frame(active_profiles, selected_id, percent, safety_percent, period, attack_limit)
     visible_sections = (
         len(frame)
         if selected_id is None
-        else len(select_frame(active_profiles, None, percent, safety_percent))
+        else len(select_frame(active_profiles, None, percent, safety_percent, period, attack_limit))
     )
     universe = len(load_sections())
     selected = frame.iloc[0] if selected_id and len(frame) == 1 else None
@@ -429,6 +524,13 @@ def build_payload(
             "coverage_rate": security_valid_count() / universe,
             "missing_sections": universe - security_valid_count(),
         },
+        "veb_filter": {
+            "period": period,
+            "threshold": attack_limit,
+            "maximum": veb_max(period),
+            "available_sections": int(load_sections()[VEB_COLUMNS[period]].notna().sum()),
+            "visible_sections": visible_sections,
+        },
         "profile_counts": {key: int(value) for key, value in counts.items()},
         "history": history,
         "projected_2027": projected,
@@ -451,22 +553,27 @@ def build_payload(
             "security": _coverage(frame, "tasa_incidencia_total_100k")
             if len(frame)
             else {"available": 0, "total": 0, "rate": 0},
+            "veb": _coverage(frame, "inegi_municipality_keys")
+            if len(frame)
+            else {"available": 0, "total": 0, "rate": 0},
         },
     }
 
 
 def export_selection_csv(
-    active_profiles: list[str], density_percent: Any = 100, security_percent: Any = 100
+    active_profiles: list[str], density_percent: Any = 100, security_percent: Any = 100,
+    veb_period: Any = "cumulative", veb_threshold: Any = None,
 ) -> tuple[str, int]:
     """Compatibilidad para consumidores internos; la ruta web usa streaming."""
     chunks, count = export_selection_csv_stream(
-        active_profiles, density_percent, security_percent
+        active_profiles, density_percent, security_percent, veb_period, veb_threshold
     )
     return "".join(chunks), count
 
 
 def _export_metadata(
-    active_profiles: list[str], density_percent: Any, security_percent: Any, row_count: int
+    active_profiles: list[str], density_percent: Any, security_percent: Any,
+    veb_period: Any, veb_threshold: Any, row_count: int
 ) -> str:
     density = normalize_density_percent(density_percent)
     security = normalize_security_percent(security_percent)
@@ -474,6 +581,8 @@ def _export_metadata(
         "perfiles_visuales": [profile for profile in active_profiles if profile in ALL_PROFILES],
         "densidad_superior_porcentaje": density,
         "incidencia_inferior_porcentaje_solicitado": security,
+        "veb_periodo": normalize_veb_period(veb_period),
+        "veb_ataques_municipales_maximo": normalize_veb_threshold(veb_period, veb_threshold),
         "incidencia_inferior_porcentaje_efectivo": (
             security_effective_count(security) / security_valid_count()
             if security < 100 and security_valid_count()
@@ -491,15 +600,19 @@ def export_selection_csv_stream(
     active_profiles: list[str],
     density_percent: Any = 100,
     security_percent: Any = 100,
+    veb_period: Any = "cumulative",
+    veb_threshold: Any = None,
     *,
     batch_size: int = 512,
 ) -> tuple[Iterator[str], int]:
     """Entrega el contrato CSV completo por lotes, sin materializarlo en RAM."""
     density = normalize_density_percent(density_percent)
     security = normalize_security_percent(security_percent)
+    period = normalize_veb_period(veb_period)
+    attack_limit = normalize_veb_threshold(period, veb_threshold)
     active = [profile for profile in active_profiles if profile in ALL_PROFILES]
-    row_count = len(select_frame(active, None, density, security))
-    metadata = _export_metadata(active, density, security, row_count)
+    row_count = len(select_frame(active, None, density, security, period, attack_limit))
+    metadata = _export_metadata(active, density, security, period, attack_limit, row_count)
     density_limit = density_selection_count(density)
     security_limit = security_target_count(security)
 
@@ -522,6 +635,9 @@ def export_selection_csv_stream(
                         mask &= chunk["security_rank_start"].notna() & chunk[
                             "security_rank_start"
                         ].le(security_limit)
+                    if veb_filter_enabled(period, attack_limit):
+                        values = chunk[VEB_COLUMNS[period]]
+                        mask &= values.notna() & values.le(attack_limit)
                     selected = chunk.loc[mask]
                     if selected.empty:
                         del selected, chunk, batch

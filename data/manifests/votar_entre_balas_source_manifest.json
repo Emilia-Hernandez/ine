@@ -1,0 +1,42 @@
+{
+  "dataset_version": "radar27-votar-entre-balas-2026-10-24.1",
+  "cutoff_date": "2026-10-24",
+  "latest_event_date": "2026-09-29",
+  "downloaded_at_utc": "2026-10-24T18:13:34Z",
+  "official_page": "https://votarentrebalas.datacivica.org/datos-votar-entre-balas",
+  "download_url": "https://votarentrebalas.datacivica.org/app/download_zip",
+  "files": [
+    {
+      "role": "download_bundle",
+      "path": "data/raw/votar_entre_balas/2026-10-24/Datos_votar_entre_balas.zip",
+      "url": "https://votarentrebalas.datacivica.org/app/download_zip",
+      "downloaded_at_utc": "2026-10-24T18:13:34Z",
+      "sha256": "c30a1348b0e5da61d509eb44c276b2a2a69e8e782b2289cc38b68e4bde1cf32d"
+    },
+    {
+      "role": "csv",
+      "path": "data/raw/votar_entre_balas/2026-10-24/political_violence.csv",
+      "sha256": "d1fcd9f97d709a557d979c0d950ce4af147818d55d5cb39c1c64d41905a38471"
+    },
+    {
+      "role": "dictionary",
+      "path": "data/raw/votar_entre_balas/2026-10-24/Diccionario-datos.pdf",
+      "sha256": "d64fc145558ac0889e0ba328f602a037207a62d0e668f0481566c8ffb2a35277"
+    },
+    {
+      "role": "methodology",
+      "path": "data/raw/votar_entre_balas/2026-10-24/Metodologia.pdf",
+      "sha256": "dab9d9a1bbf6bb07f8639be2c8b4ae4f00f2c646927d3fa097f003910f2cd604"
+    },
+    {
+      "role": "ine_inegi_crosswalk",
+      "path": "data/interim/inegi/eceg_2020/catalogos/cat_municipios_2020_INEGI-INE-ECEG.xlsx",
+      "sha256": "ac0f77178fa92f67fc3e6fc7fcbdf9aa26f4e51ea058631fccd77d75804cda12"
+    },
+    {
+      "role": "section_universe",
+      "path": "handoff/FINAL_2027_MUNICIPAL/SECCIONES_ELECTORALES_2027.csv",
+      "sha256": "0fca0ae3331e8cd0464d440dda6cee0ae0e8e297a21a319676a0b38b827a7c15"
+    }
+  ]
+}

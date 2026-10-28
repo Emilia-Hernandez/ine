@@ -1,11 +1,11 @@
 {
-  "dashboard_release_version": "radar27-dashboard-security.5",
+  "dashboard_release_version": "radar27-dashboard-intervention-simulator.1",
   "model_version": "radar27-final-2027-municipal.1",
   "model_id": "A_nacional_actual",
-  "published_date": "2026-10-20",
-  "data_file": "dashboard/data/releases/radar27-dashboard-security.5/dashboard_sections.parquet",
-  "manifest_file": "dashboard/data/releases/radar27-dashboard-security.5/manifest.json",
-  "asset_prefix": "/assets/releases/radar27-dashboard-security.5",
+  "published_date": "2026-10-28",
+  "data_file": "dashboard/data/releases/radar27-dashboard-intervention-simulator.1/dashboard_sections.parquet",
+  "manifest_file": "dashboard/data/releases/radar27-dashboard-intervention-simulator.1/manifest.json",
+  "asset_prefix": "/assets/releases/radar27-dashboard-intervention-simulator.1",
   "security_version": "radar27-security-municipal-2025.1",
   "requires_dashboard_restart": true
 }

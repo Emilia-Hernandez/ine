@@ -25,7 +25,11 @@ from dashboard.data_layer import (
     load_sections,
     normalize_density_percent,
     normalize_security_percent,
+    normalize_veb_period,
+    normalize_veb_threshold,
     security_target_count,
+    veb_filter_enabled,
+    veb_max,
 )
 from dashboard.figures import (
     ORANGE,
@@ -37,16 +41,19 @@ from dashboard.figures import (
     socio_figure,
     timeline_figure,
 )
+from dashboard.simulator_ui import layout as simulator_layout
+from dashboard.simulator_ui import register_callbacks as register_simulator_callbacks
 from dashboard.state import resolve_selection
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "dashboard" / "assets"
 RELEASE_POINTER = ROOT / "dashboard" / "data" / "current_release.json"
+WORKING_COPY = os.environ.get("RADAR27_DASHBOARD_WORKING_COPY") == "1"
 CURRENT_RELEASE = (
     json.loads(RELEASE_POINTER.read_text(encoding="utf-8"))
-    if RELEASE_POINTER.exists()
+    if RELEASE_POINTER.exists() and not WORKING_COPY
     else {
-        "dashboard_release_version": "working-copy",
+        "dashboard_release_version": "working-copy-votar-entre-balas",
         "model_version": "radar27-final-2027-municipal.1",
         "asset_prefix": "/assets",
     }
@@ -62,6 +69,18 @@ PROFILE_COLORS = {
     "P6": "#EDE0C7",
     "EI_AB": "#F4C95D",
     "EI_CD": "#FBE9AF",
+}
+VEB_PERIODS = {
+    "cumulative": {
+        "label": "Acumulado histórico",
+        "period": "29 dic 2017–24 oct 2026 · registros hasta 29 sep",
+        "main": "municipal_attacks_cumulative",
+    },
+    "24m": {
+        "label": "Últimos 24 meses",
+        "period": "25 oct 2024–24 oct 2026 · registros hasta 29 sep",
+        "main": "municipal_attacks_24m",
+    },
 }
 
 MAP_JS = Namespace("dashboardMap")
@@ -97,7 +116,11 @@ def download_sections_csv() -> Response:
     profiles = [value for value in request.args.get("profiles", "").split(",") if value]
     density = normalize_density_percent(request.args.get("density", 100))
     security = normalize_security_percent(request.args.get("security", 100))
-    chunks, count = export_selection_csv_stream(profiles, density, security)
+    veb_period = normalize_veb_period(request.args.get("veb_period", "cumulative"))
+    veb_threshold = normalize_veb_threshold(veb_period, request.args.get("veb_max"))
+    chunks, count = export_selection_csv_stream(
+        profiles, density, security, veb_period, veb_threshold
+    )
     logger.info(
         "csv_export_started rows=%s density=%s security=%s profiles=%s",
         count,
@@ -151,7 +174,11 @@ def _label(value: Any) -> str:
 
 
 def _missing(value: Any) -> bool:
-    return value is None or (isinstance(value, float) and math.isnan(value))
+    return (
+        value is None
+        or (isinstance(value, float) and math.isnan(value))
+        or str(value) in {"<NA>", "NaT"}
+    )
 
 
 def _profile_options() -> list[dict[str, Any]]:
@@ -309,6 +336,7 @@ def _aggregate_panel(payload: dict[str, Any]) -> html.Div:
             _coverage_row("Edad y sexo electoral", payload["coverage"]["electoral_demography"]),
             _coverage_row("Demografía ECEG", payload["coverage"]["eceg"]),
             _coverage_row("Incidencia municipal", payload["coverage"]["security"]),
+            _coverage_row("Votar entre Balas · municipio", payload["coverage"]["veb"]),
         ],
         className="context-panel-body",
     )
@@ -318,7 +346,81 @@ def _detail_row(label: str, value: str) -> html.Div:
     return html.Div([html.Span(label), html.Strong(value)], className="detail-row")
 
 
-def _section_panel(payload: dict[str, Any]) -> html.Div:
+def _veb_attack_card(row: dict[str, Any], period_id: str) -> html.Div:
+    period = VEB_PERIODS[normalize_veb_period(period_id)]
+    main_value = row.get(period["main"])
+    value = "Sin dato" if _missing(main_value) else f"{int(main_value):,} eventos"
+    return html.Div(
+        [
+            html.Strong("Ataques político-criminales · municipio"),
+            _detail_row("Eventos", value),
+            _detail_row("Municipio", _label(row.get("nombre_municipio"))),
+            _detail_row("Periodo", period["label"]),
+            html.Small("Fuente: Data Cívica — Votar entre Balas."),
+        ],
+        className="attack-summary",
+    )
+
+
+def _veb_filter_control() -> html.Div:
+    maximum = veb_max("cumulative")
+    available = bool(load_sections()["municipal_attacks_cumulative"].notna().any())
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.Strong("Ataques político-criminales en el municipio"),
+                    html.Span(
+                        "ⓘ",
+                        title=(
+                            "Cuenta eventos distintos con al menos un objetivo municipal. "
+                            "El valor corresponde al municipio de la sección; no ubica "
+                            "el ataque dentro de esa sección."
+                        ),
+                        className="density-help",
+                    ),
+                ],
+                className="density-title",
+            ),
+            html.Span(
+                "Se usa el número de eventos registrados en el municipio asignado a la sección.",
+                className="density-subtitle",
+            ),
+            html.Label("Periodo", htmlFor="veb-period", className="veb-period-label"),
+            dcc.Dropdown(
+                id="veb-period",
+                options=[
+                    {"label": item["label"], "value": key}
+                    for key, item in VEB_PERIODS.items()
+                ],
+                value="cumulative",
+                clearable=False,
+                searchable=False,
+                className="veb-period-select",
+            ),
+            html.Strong(f"{maximum:,} ataques", id="veb-value", className="density-value"),
+            dcc.Slider(
+                id="veb-filter",
+                min=0,
+                max=maximum,
+                step=1,
+                value=maximum,
+                disabled=not available,
+                marks={0: "0", maximum: str(maximum)},
+                updatemode="drag",
+                tooltip={"placement": "bottom"},
+                className="density-slider veb-slider",
+            ),
+            html.P(id="veb-description", className="density-description"),
+            html.Strong(id="veb-visible", className="density-visible"),
+            html.Span(id="veb-missing", className="density-threshold"),
+            html.Small("Fuente: Data Cívica — Votar entre Balas.", className="veb-source"),
+        ],
+        className="density-control veb-control",
+    )
+
+
+def _section_panel(payload: dict[str, Any], veb_period: str = "cumulative") -> html.Div:
     row = payload["section"]
     profile = str(row["perfil_visual_id"])
     return html.Div(
@@ -395,6 +497,7 @@ def _section_panel(payload: dict[str, Any]) -> html.Div:
                 ],
                 className="detail-list",
             ),
+            _veb_attack_card(row, veb_period),
             html.Div(
                 [
                     html.Strong("Evidencia insuficiente"),
@@ -487,6 +590,15 @@ app.layout = html.Div(
                 ),
             ],
             className="app-header",
+        ),
+        dcc.Tabs(
+            id="app-tabs",
+            value="explorer",
+            children=[
+                dcc.Tab(label="Explorador territorial", value="explorer"),
+                dcc.Tab(label="Simulador de intervenciones", value="simulator"),
+            ],
+            className="app-tabs",
         ),
         html.Main(
             [
@@ -690,6 +802,7 @@ app.layout = html.Div(
                                     ],
                                     className="density-control",
                                 ),
+                                _veb_filter_control(),
                                 html.Div(
                                     [
                                         html.Strong("0 secciones seleccionadas", id="export-count"),
@@ -703,6 +816,8 @@ app.layout = html.Div(
                                                         "profiles": ",".join(ALL_PROFILES),
                                                         "density": 100,
                                                         "security": 100,
+                                                        "veb_period": "cumulative",
+                                                        "veb_max": veb_max("cumulative"),
                                                     }
                                                 )
                                             ),
@@ -770,6 +885,9 @@ app.layout = html.Div(
                                                 "densityLimit": density_selection_count(100),
                                                 "securityEnabled": False,
                                                 "securityLimit": security_target_count(100),
+                                                "vebEnabled": False,
+                                                "vebPeriod": "cumulative",
+                                                "vebThreshold": veb_max("cumulative"),
                                                 "selected": None,
                                                 "colors": PROFILE_COLORS,
                                             },
@@ -820,7 +938,12 @@ app.layout = html.Div(
                             ],
                             className="map-panel panel",
                         ),
-                        html.Aside(html.Div(id="context-panel"), className="context-panel panel"),
+                        html.Aside(
+                            [
+                                html.Div(id="context-panel"),
+                            ],
+                            className="context-panel panel",
+                        ),
                     ],
                     className="top-grid",
                 ),
@@ -870,11 +993,16 @@ app.layout = html.Div(
                     className="app-footer",
                 ),
             ],
+            id="explorer-tab-content",
             className="app-main",
         ),
+        simulator_layout(ASSET_PREFIX, MEXICO_BOUNDS),
     ],
     className="app-shell",
 )
+
+
+register_simulator_callbacks(app, ASSET_PREFIX)
 
 
 @app.callback(
@@ -903,11 +1031,32 @@ def update_profile_buttons(*clicks: int) -> tuple[list[str] | Any, int | Any, in
 
 
 @app.callback(
+    Output("veb-filter", "max"),
+    Output("veb-filter", "marks"),
+    Output("veb-filter", "value"),
+    Input("veb-period", "value"),
+    Input("restore-profiles", "n_clicks"),
+    State("veb-filter", "value"),
+)
+def update_veb_range(period: str, restore_clicks: int, current: int | None) -> tuple[int, dict[int, str], int]:
+    del restore_clicks
+    return veb_range(period, current, restore=ctx.triggered_id == "restore-profiles")
+
+
+def veb_range(period: str, current: int | None, restore: bool = False) -> tuple[int, dict[int, str], int]:
+    maximum = veb_max(normalize_veb_period(period))
+    value = maximum if restore else normalize_veb_threshold(period, current)
+    return maximum, {0: "0", maximum: str(maximum)}, value
+
+
+@app.callback(
     Output("selected-section", "data"),
     Output("section-geo", "hideout"),
     Input("profile-filter", "value"),
     Input("density-filter", "value"),
     Input("security-filter", "value"),
+    Input("veb-period", "value"),
+    Input("veb-filter", "value"),
     Input("section-geo", "clickData"),
     Input("clear-selection", "n_clicks"),
     State("selected-section", "data"),
@@ -916,6 +1065,8 @@ def update_selection(
     active_profiles: list[str] | None,
     density_percent: int | None,
     security_percent: int | None,
+    veb_period: str,
+    veb_threshold: int | None,
     click_data: dict[str, Any] | None,
     clear_clicks: int,
     current_selection: str | None,
@@ -924,8 +1075,11 @@ def update_selection(
     active = active_profiles or []
     percent = normalize_density_percent(density_percent)
     safety_percent = normalize_security_percent(security_percent)
+    period = normalize_veb_period(veb_period)
+    attack_limit = normalize_veb_threshold(period, veb_threshold)
     selected = resolve_selection(
-        ctx.triggered_id, active, click_data, current_selection, percent, safety_percent
+        ctx.triggered_id, active, click_data, current_selection, percent, safety_percent,
+        period, attack_limit,
     )
     return selected, {
         "activeProfiles": active,
@@ -933,6 +1087,9 @@ def update_selection(
         "densityLimit": density_selection_count(percent),
         "securityEnabled": safety_percent < 100,
         "securityLimit": security_target_count(safety_percent),
+        "vebEnabled": veb_filter_enabled(period, attack_limit),
+        "vebPeriod": period,
+        "vebThreshold": attack_limit,
         "selected": selected,
         "colors": PROFILE_COLORS,
     }
@@ -994,12 +1151,18 @@ def reset_map_view(n_clicks: int) -> dict[str, Any] | Any:
     Output("security-description", "children"),
     Output("security-visible", "children"),
     Output("security-threshold", "children"),
+    Output("veb-value", "children"),
+    Output("veb-description", "children"),
+    Output("veb-visible", "children"),
+    Output("veb-missing", "children"),
     Output("export-count", "children"),
     Input("profile-filter", "value"),
     Input("selected-section", "data"),
     Input("socio-metric", "value"),
     Input("density-filter", "value"),
     Input("security-filter", "value"),
+    Input("veb-period", "value"),
+    Input("veb-filter", "value"),
 )
 def update_dashboard(
     active_profiles: list[str] | None,
@@ -1007,11 +1170,18 @@ def update_dashboard(
     metric_id: str,
     density_percent: int | None = 100,
     security_percent: int | None = 100,
+    veb_period: str = "cumulative",
+    veb_threshold: int | None = None,
 ) -> tuple[Any, ...]:
     payload = build_payload(
-        active_profiles or [], selected_section, metric_id, density_percent, security_percent
+        active_profiles or [], selected_section, metric_id, density_percent,
+        security_percent, veb_period, veb_threshold,
     )
-    context = _section_panel(payload) if payload["mode"] == "section" else _aggregate_panel(payload)
+    context = (
+        _section_panel(payload, veb_period)
+        if payload["mode"] == "section"
+        else _aggregate_panel(payload)
+    )
     age = distribution_figure(payload["age"], WINE)
     sex = distribution_figure(payload["sex"], ORANGE)
     socio = socio_figure(payload["socio"])
@@ -1057,6 +1227,22 @@ def update_dashboard(
             f"{security['effective_sections']:,} secciones con indicador"
         )
     security_visible = f"{security['visible_sections']:,} secciones visibles"
+    veb = payload["veb_filter"]
+    attack_limit = veb["threshold"]
+    missing = len(load_sections()) - veb["available_sections"]
+    if veb["available_sections"] == 0:
+        veb_description = "Sin datos de Votar entre Balas en este release."
+        veb_missing = "El filtro no altera la selección actual."
+    elif attack_limit == veb["maximum"] and not veb_filter_enabled(veb["period"], attack_limit):
+        veb_description = f"Mostrar secciones con {attack_limit:,} o menos ataques."
+        veb_missing = f"Umbral máximo: también se incluyen {missing:,} secciones sin dato municipal."
+    else:
+        veb_description = f"Mostrar secciones con {attack_limit:,} o menos ataques."
+        veb_missing = (
+            f"{missing:,} secciones sin dato municipal quedan fuera. "
+            "Cero significa ningún evento registrado en la fuente."
+        )
+    veb_visible = f"{veb['visible_sections']:,} secciones visibles"
     export_count = f"{security['visible_sections']:,} secciones seleccionadas"
     return (
         context,
@@ -1075,6 +1261,10 @@ def update_dashboard(
         security_description,
         security_visible,
         security_threshold_text,
+        f"{attack_limit:,} ataques",
+        veb_description,
+        veb_visible,
+        veb_missing,
         export_count,
     )
 
@@ -1084,17 +1274,23 @@ def update_dashboard(
     Input("profile-filter", "value"),
     Input("density-filter", "value"),
     Input("security-filter", "value"),
+    Input("veb-period", "value"),
+    Input("veb-filter", "value"),
 )
 def update_download_href(
     active_profiles: list[str] | None,
     density_percent: int | None,
     security_percent: int | None,
+    veb_period: str = "cumulative",
+    veb_threshold: int | None = None,
 ) -> str:
     query = urlencode(
         {
             "profiles": ",".join(active_profiles or []),
             "density": normalize_density_percent(density_percent),
             "security": normalize_security_percent(security_percent),
+            "veb_period": normalize_veb_period(veb_period),
+            "veb_max": normalize_veb_threshold(veb_period, veb_threshold),
         }
     )
     return f"/download/sections.csv?{query}"

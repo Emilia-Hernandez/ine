@@ -1,6 +1,7 @@
 # RADAR 27 — auditoría de despliegue en Render Free
 
-Fecha de la medición: 2026-10-20 (America/Mexico_City).
+Fecha de la medición original: 2026-10-20 (America/Mexico_City).
+Actualización de publicación: 2026-10-28.
 
 ## Decisión
 
@@ -9,10 +10,17 @@ separar la tabla analítica de ejecución del contrato completo de exportación 
 descargas grandes. No debe desplegarse la implementación anterior: superaba 512 MiB al cargar
 datos y alcanzaba aproximadamente 1.55 GiB al exportar el universo nacional.
 
-El único release autorizado es `radar27-dashboard-security.5`. El puntero fija el modelo
+El release autorizado vigente es `radar27-dashboard-intervention-simulator.1`, que sustituye a
+`radar27-dashboard-security.5` sin sobrescribirlo. El puntero fija el modelo
 `radar27-final-2027-municipal.1`, `A_nacional_actual`; el experimento
 `radar27-security-ablation.2` no se lee ni se distribuye. `render.yaml` desactiva despliegues
 automáticos para que un experimento o un cambio de datos no publique predicciones por accidente.
+
+La actualización incorpora la pestaña del simulador y 16 columnas descriptivas de Votar entre
+Balas. Después de limitar el frame de cálculo del simulador a sus 10 columnas de entrada, el pico
+medido para una simulación de 17,688 secciones bajó de 489.86 a 335.66 MiB sin cambiar resultados.
+La exportación nacional de 180 columnas alcanzó 411.17 MiB; dos solicitudes simultáneas,
+serializadas, alcanzaron 479.59 MiB. Ambos casos permanecen bajo el límite de 512 MiB.
 
 ## Arquitectura de ejecución
 
@@ -114,9 +122,10 @@ Hashes SHA-256 principales del paquete:
 e9603e745436d7157a9096485a3009e3765d5ed0b34d2b716c4bd006b533ea2b  state_boundaries.geojson
 ```
 
-## Límite pendiente
+## Operación del despliegue
 
-No se realizó el despliegue público porque en este entorno no se encontró una sesión autorizada
-de Render ni una credencial/API configurada. Crear el servicio requiere que la rama de despliegue
-esté disponible en el Git remoto y que la cuenta de Render autorice ese repositorio. Una vez
-disponibles, la configuración está lista para crear el Blueprint sin cambiar datos ni modelo.
+El servicio público existente responde en `https://radar27.onrender.com/healthz`. En esta
+actualización no hay una sesión autenticada de Render ni una credencial/API configurada. Como
+`autoDeployTrigger` permanece desactivado deliberadamente, después de actualizar la rama de
+producción se debe iniciar manualmente **Deploy latest commit** en el panel y comprobar el health
+check, el commit desplegado y los logs de arranque.
