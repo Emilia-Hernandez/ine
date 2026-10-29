@@ -34,6 +34,7 @@ from dashboard.data_layer import (
     select_frame,
     veb_max,
 )
+from dashboard.map_geometry import MAPS_BASE_URL
 from dashboard.prepare_data import _rank_density
 from dashboard.state import resolve_selection
 
@@ -119,12 +120,12 @@ def test_geometry_sources_switch_without_touching_aggregates() -> None:
     detail, detail_format, detail_options = update_geometry_source(
         9, [[19.0, -100.0], [20.0, -99.0]]
     )
-    assert national.endswith("sections_overview.fgb")
+    assert national == f"{MAPS_BASE_URL}/sections_overview.fgb"
     assert national_format == "flatgeobuf"
     assert set(national_options["rect"]) == {"minX", "minY", "maxX", "maxY"}
-    assert overview.endswith("sections_overview.fgb")
+    assert overview == f"{MAPS_BASE_URL}/sections_overview.fgb"
     assert overview_format == "flatgeobuf"
-    assert detail.endswith("sections_detail.fgb")
+    assert detail == f"{MAPS_BASE_URL}/sections_detail.fgb"
     assert detail_format == "flatgeobuf"
     assert set(options["rect"]) == {"minX", "minY", "maxX", "maxY"}
     assert detail_options["rect"]["maxX"] <= -98.75

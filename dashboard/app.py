@@ -41,7 +41,7 @@ from dashboard.figures import (
     socio_figure,
     timeline_figure,
 )
-from dashboard.map_geometry import geometry_spec
+from dashboard.map_geometry import geometry_spec, map_layer_url
 from dashboard.navigation import SIMULATOR_URL
 from dashboard.state import resolve_selection
 
@@ -866,7 +866,7 @@ app.layout = html.Div(
                                     [
                                         dl.GeoJSON(
                                             id="section-geo",
-                                            url=f"{ASSET_PREFIX}/sections_overview.fgb",
+                                            url=map_layer_url("sections_overview.fgb"),
                                             format="flatgeobuf",
                                             formatOptions={"rect": {
                                                 "minX": -118.8,
@@ -1103,7 +1103,7 @@ def update_geometry_source(
     zoom: float | None,
     bounds: Any,
 ) -> tuple[Any, Any, Any]:
-    return geometry_spec(ASSET_PREFIX, zoom, bounds)
+    return geometry_spec(zoom, bounds)
 
 
 @app.callback(

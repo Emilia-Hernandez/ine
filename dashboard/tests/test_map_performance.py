@@ -5,7 +5,7 @@ import json
 import geopandas as gpd
 
 from dashboard.app import ASSET_PREFIX, ROOT, server as explorer_server
-from dashboard.map_geometry import geometry_spec
+from dashboard.map_geometry import MAPS_BASE_URL, geometry_spec
 from dashboard.simulator_app import server as simulator_server
 
 
@@ -53,8 +53,8 @@ def test_polygon_assets_support_cached_range_requests_in_both_apps() -> None:
 
 
 def test_geometry_uses_only_two_polygon_levels_and_quantized_bboxes() -> None:
-    national = geometry_spec("/assets/release", 4, None)
-    assert national[0].endswith("sections_overview.fgb")
+    national = geometry_spec(4, None)
+    assert national[0] == f"{MAPS_BASE_URL}/sections_overview.fgb"
     assert national[1] == "flatgeobuf"
     assert national[2]["rect"] == {
         "minX": -118.8,
@@ -62,10 +62,10 @@ def test_geometry_uses_only_two_polygon_levels_and_quantized_bboxes() -> None:
         "maxX": -86.4,
         "maxY": 33.4,
     }
-    first = geometry_spec("/assets/release", 7, [[19.01, -100.01], [19.99, -99.01]])
-    nearby = geometry_spec("/assets/release", 7, [[19.02, -100.02], [19.98, -99.02]])
+    first = geometry_spec(7, [[19.01, -100.01], [19.99, -99.01]])
+    nearby = geometry_spec(7, [[19.02, -100.02], [19.98, -99.02]])
     assert first == nearby
-    assert first[0].endswith("sections_detail.fgb")
+    assert first[0] == f"{MAPS_BASE_URL}/sections_detail.fgb"
     assert first[1] == "flatgeobuf"
 
 
@@ -76,8 +76,8 @@ def test_apps_have_independent_polygon_layouts() -> None:
     simulator_map = _find(simulator, "sim-section-geo")
     assert explorer_map is not None
     assert simulator_map is not None
-    assert explorer_map["url"].endswith("sections_overview.fgb")
-    assert simulator_map["url"].endswith("sections_overview.fgb")
+    assert explorer_map["url"] == f"{MAPS_BASE_URL}/sections_overview.fgb"
+    assert simulator_map["url"] == f"{MAPS_BASE_URL}/sections_overview.fgb"
     assert _find(explorer, "sim-section-geo") is None
     assert _find(simulator, "section-geo") is None
     assert "pointToLayer" not in explorer_map

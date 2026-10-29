@@ -147,7 +147,7 @@ app.layout = html.Div(
     className="app-shell",
 )
 
-register_callbacks(app, ASSET_PREFIX)
+register_callbacks(app)
 
 
 if __name__ == "__main__":

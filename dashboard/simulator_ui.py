@@ -23,7 +23,7 @@ from dashboard.data_layer import (
     veb_filter_enabled,
     veb_max,
 )
-from dashboard.map_geometry import geometry_spec
+from dashboard.map_geometry import geometry_spec, map_layer_url
 from dashboard.simulator import (
     INTERVENTIONS,
     PRIORITY_COLORS,
@@ -555,7 +555,7 @@ def layout(asset_prefix: str, mexico_bounds: list[list[float]]) -> html.Main:
                         [
                             dl.GeoJSON(
                                 id="sim-section-geo",
-                                url=f"{asset_prefix}/sections_overview.fgb",
+                                url=map_layer_url("sections_overview.fgb"),
                                 format="flatgeobuf",
                                 formatOptions={"rect": {
                                     "minX": -118.8,
@@ -833,7 +833,7 @@ def simulation_aggregate_csv(
     return "\ufeff" + aggregate.to_csv(index=False)
 
 
-def register_callbacks(app: Dash, asset_prefix: str) -> None:
+def register_callbacks(app: Dash) -> None:
     @app.callback(
         Output("sim-veb-filter", "max"),
         Output("sim-veb-filter", "marks"),
@@ -1013,7 +1013,7 @@ def register_callbacks(app: Dash, asset_prefix: str) -> None:
         zoom: Any,
         bounds: Any,
     ) -> tuple[Any, Any, Any]:
-        return geometry_spec(asset_prefix, zoom, bounds)
+        return geometry_spec(zoom, bounds)
 
     download_inputs = [
         Input("sim-profile-filter", "value"),

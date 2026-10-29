@@ -3,10 +3,18 @@
 from __future__ import annotations
 
 import math
+import os
 from typing import Any
 
 DETAIL_MIN_ZOOM = 7
 MEXICO_RECT = {"minX": -118.8, "minY": 14.2, "maxX": -86.4, "maxY": 33.4}
+MAPS_BASE_URL = (
+    os.environ.get("RADAR27_MAPS_BASE_URL") or "https://radar27-mapas.onrender.com"
+).rstrip("/")
+
+
+def map_layer_url(filename: str) -> str:
+    return f"{MAPS_BASE_URL}/{filename}"
 
 
 def _bounded_rect(bounds: Any, grid: float) -> dict[str, float]:
@@ -30,7 +38,6 @@ def _bounded_rect(bounds: Any, grid: float) -> dict[str, float]:
 
 
 def geometry_spec(
-    asset_prefix: str,
     zoom: Any,
     bounds: Any,
 ) -> tuple[str, str, dict[str, Any]]:
@@ -43,7 +50,7 @@ def geometry_spec(
     filename = "sections_detail.fgb" if detail else "sections_overview.fgb"
     grid = 0.25 if detail else 1.0
     return (
-        f"{asset_prefix}/{filename}",
+        map_layer_url(filename),
         "flatgeobuf",
         {"rect": _bounded_rect(bounds, grid)},
     )
