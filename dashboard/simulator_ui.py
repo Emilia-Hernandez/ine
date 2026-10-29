@@ -39,6 +39,7 @@ from dashboard.simulator import (
 
 MAP_JS = Namespace("dashboardMap")
 PARTICIPATION_COLORS = ("#9C1C24", "#E76F51", "#F6D98B", "#9CCDE1", "#164A72")
+MAP_SCENARIOS = {"conservative": "pesimista", "central": "normal", "optimistic": "optimista"}
 INTERVENTION_SHORT_LABELS = {
     1: "Secreto del voto",
     2: "Norma social",
@@ -177,11 +178,13 @@ def _legend_item(label: str, class_name: str) -> html.Div:
     )
 
 
-def _shared_participation_range(selected: pd.DataFrame) -> tuple[float, float] | None:
-    values = selected[["participacion_base_pct", "participacion_central_pct"]].to_numpy(
+def _shared_participation_range(
+    selected: pd.DataFrame, scenario: str = "central"
+) -> tuple[float, float] | None:
+    values = selected[["participacion_base_pct", f"participacion_{scenario}_pct"]].to_numpy(
         dtype=float, copy=False
     )
-    valid = values[np.isfinite(values)]
+    valid = values[np.isfinite(values).all(axis=1)]
     if not valid.size:
         return None
     return float(valid.min()), float(valid.max())
@@ -263,7 +266,20 @@ def _comparison_map(
 ) -> html.Div:
     return html.Div(
         [
-            html.H3(title),
+            html.Div(
+                [
+                    html.H3(title, **({"id": "sim-map-scenario-title"} if scenario == "central" else {})),
+                    dcc.RadioItems(
+                        id="sim-map-scenario",
+                        options=[{"label": label.capitalize(), "value": value} for value, label in MAP_SCENARIOS.items()],
+                        value="central",
+                        className="sim-map-scenario-selector",
+                        inputClassName="sim-map-scenario-input",
+                        labelClassName="sim-map-scenario-option",
+                    ) if scenario == "central" else None,
+                ],
+                className="sim-comparison-heading",
+            ),
             dl.Map(
                 [
                     dl.GeoJSON(
@@ -447,6 +463,8 @@ def layout(asset_prefix: str, mexico_bounds: list[list[float]]) -> html.Main:
     return html.Main(
         [
             dcc.Store(id="sim-eligible-count", data=0),
+            dcc.Store(id="sim-map-data", data={}),
+            dcc.Store(id="sim-map-scenario-applied"),
             html.Section(
                 [
                     html.Span("Planeación hipotética", className="eyebrow"),
@@ -1046,7 +1064,7 @@ def register_callbacks(app: Dash) -> None:
         Output("sim-security-context", "children"),
         Output("sim-section-geo-base", "hideout"),
         Output("sim-section-geo-central", "hideout"),
-        Output("sim-map-scale", "children"),
+        Output("sim-map-data", "data"),
         Input("sim-profile-filter", "value"),
         Input("sim-include-ei", "value"),
         Input("sim-density-filter", "value"),
@@ -1084,7 +1102,10 @@ def register_callbacks(app: Dash) -> None:
         ]
         simulated = simulation["frame"]
         selected = simulated.loc[simulated["seleccionada"]]
-        participation_range = _shared_participation_range(selected)
+        participation_ranges = {
+            scenario: _shared_participation_range(selected, scenario)
+            for scenario in MAP_SCENARIOS
+        }
         assignment_lookup = {
             str(row.clave_seccion): [
                 int(row.intervencion_id),
@@ -1113,7 +1134,7 @@ def register_callbacks(app: Dash) -> None:
                 for item in INTERVENTIONS
             },
             "participationColors": PARTICIPATION_COLORS,
-            "participationRange": participation_range,
+            "participationRanges": participation_ranges,
         }
         scenario_results = simulation["scenario_results"]
         return (
@@ -1133,8 +1154,34 @@ def register_callbacks(app: Dash) -> None:
             security_children,
             {**hideout, "mapScenario": "base"},
             {**hideout, "mapScenario": "central"},
-            _map_scale_legend(participation_range, simulation["selected_count"]),
+            {"participationRanges": participation_ranges, "selectedCount": simulation["selected_count"]},
         )
+
+    @app.callback(
+        Output("sim-map-scale", "children"),
+        Output("sim-map-scenario-title", "children"),
+        Input("sim-map-scenario", "value"),
+        Input("sim-map-data", "data"),
+    )
+    def update_map_scenario(scenario: str, map_data: dict[str, Any] | None) -> tuple[Any, ...]:
+        scenario = scenario if scenario in MAP_SCENARIOS else "central"
+        map_data = map_data or {}
+        participation_range = map_data.get("participationRanges", {}).get(scenario)
+        return (
+            _map_scale_legend(participation_range, map_data.get("selectedCount", 0)),
+            f"Con intervención · escenario {MAP_SCENARIOS[scenario]}",
+        )
+
+    app.clientside_callback(
+        """
+        function(scenario) {
+            window.dashboardMap.simulatorApplyScenario(scenario);
+            return scenario;
+        }
+        """,
+        Output("sim-map-scenario-applied", "data"),
+        Input("sim-map-scenario", "value"),
+    )
 
     @app.callback(
         Output("sim-section-geo-base", "url"),

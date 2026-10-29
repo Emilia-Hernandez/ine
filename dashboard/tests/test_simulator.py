@@ -242,9 +242,7 @@ def test_simulator_map_styles_only_selected_sections() -> None:
     assert "weight: crimeContext ? 0.45 : (selected ? 0.55 : 0)" in source
     assert "opacity: crimeContext ? 0.78 : (selected ? 0.72 : 0)" in source
     assert "hideout.mapView" not in source
-    assert "Pesimista:" in source
-    assert "Normal:" in source
-    assert "Optimista:" in source
+    assert 'conservative: "Pesimista", central: "Normal", optimistic: "Optimista"' in source
     assert "simulatorParticipationColor" in source
 
 
@@ -263,14 +261,23 @@ def test_simulator_map_colors_use_real_percentages_and_preserve_missing_values()
             interventionEffects: {"1": [0.5, 1, 2]},
             interventionNames: {"1": "Carta sobre el secreto del voto"},
             participationColors: colors,
-            participationRange: [40, 60],
+            participationRanges: {conservative: [40, 60], central: [40, 60], optimistic: [40, 60]},
             activeProfiles: ["P1"],
             includeEI: true,
             vebPeriod: "cumulative",
             mapScenario: "base"
         };
+        map.simulatorApplyScenario("central");
         const base = map.simulatorSectionStyle(feature, {hideout});
         const central = map.simulatorSectionStyle(feature, {
+            hideout: {...hideout, mapScenario: "central"}
+        });
+        map.simulatorApplyScenario("conservative");
+        const conservative = map.simulatorSectionStyle(feature, {
+            hideout: {...hideout, mapScenario: "central"}
+        });
+        map.simulatorApplyScenario("optimistic");
+        const optimistic = map.simulatorSectionStyle(feature, {
             hideout: {...hideout, mapScenario: "central"}
         });
         const invalid = map.simulatorSectionStyle(feature, {
@@ -281,15 +288,30 @@ def test_simulator_map_colors_use_real_percentages_and_preserve_missing_values()
             {hideout}
         );
         let tooltip = "";
+        map.simulatorApplyScenario("central");
         map.simulatorOnEachFeature(
             feature, {bindTooltip: value => {tooltip = value;}}, {hideout}
         );
+        let optimisticTooltip = "";
+        map.simulatorApplyScenario("optimistic");
+        map.simulatorOnEachFeature(
+            feature, {bindTooltip: value => {optimisticTooltip = value;}},
+            {hideout}
+        );
         let cappedTooltip = "";
+        map.simulatorApplyScenario("central");
         map.simulatorOnEachFeature(
             feature,
             {bindTooltip: value => {cappedTooltip = value;}},
             {hideout: {...hideout, assignmentLookup: {"01:0001": [1, 99.9]}}}
         );
+        const liveBase = {_map: {}, setStyle: function(style) {this.style = style;},
+            bindTooltip: function(value) {this.tooltip = value;}};
+        const liveRight = {_map: {}, setStyle: function(style) {this.style = style;},
+            bindTooltip: function(value) {this.tooltip = value;}};
+        map.simulatorOnEachFeature(feature, liveBase, {hideout});
+        map.simulatorOnEachFeature(feature, liveRight, {hideout: {...hideout, mapScenario: "central"}});
+        map.simulatorApplyScenario("optimistic");
         console.log(JSON.stringify({
             stops: [40, 45, 50, 55, 60].map(v => map.simulatorParticipationColor(v, colors, [40, 60])),
             between: map.simulatorParticipationColor(47.5, colors, [40, 60]),
@@ -298,12 +320,18 @@ def test_simulator_map_colors_use_real_percentages_and_preserve_missing_values()
             noLimits: map.simulatorParticipationColor(50, colors, null),
             base: base.fillColor,
             central: central.fillColor,
+            conservative: conservative.fillColor,
+            optimistic: optimistic.fillColor,
             invalid: invalid.fillColor,
             selected: map.simulatorFilter(feature, {hideout}),
             untreated: untreated,
             crimeOutline: base.dashArray,
             tooltip: tooltip,
-            cappedTooltip: cappedTooltip
+            optimisticTooltip: optimisticTooltip,
+            cappedTooltip: cappedTooltip,
+            liveBase: liveBase.style.fillColor,
+            liveRight: liveRight.style.fillColor,
+            liveTooltip: liveRight.tooltip
         }));
     """
     result = subprocess.run(
@@ -320,6 +348,7 @@ def test_simulator_map_colors_use_real_percentages_and_preserve_missing_values()
     assert actual["noLimits"] == "#9CA3AF"
     assert actual["base"] == PARTICIPATION_COLORS[2]
     assert actual["central"] != actual["base"]
+    assert len({actual["conservative"], actual["central"], actual["optimistic"]}) == 3
     assert actual["invalid"] == "#9CA3AF"
     assert actual["selected"] is True
     assert actual["untreated"] is False
@@ -329,8 +358,13 @@ def test_simulator_map_colors_use_real_percentages_and_preserve_missing_values()
     assert "Intervención: Carta sobre el secreto del voto" in actual["tooltip"]
     assert "Sin intervención: 50.00%" in actual["tooltip"]
     assert "Normal: +1.00 pp → 51.00%" in actual["tooltip"]
+    assert "Optimista: +2.00 pp → 52.00%" in actual["optimisticTooltip"]
+    assert "Normal:" not in actual["optimisticTooltip"]
     assert "Registros municipales: 2" in actual["tooltip"]
     assert "Normal: +0.10 pp → 100.00%" in actual["cappedTooltip"]
+    assert actual["liveBase"] == actual["base"]
+    assert actual["liveRight"] == actual["optimistic"]
+    assert "Optimista: +2.00 pp → 52.00%" in actual["liveTooltip"]
 
 
 def test_simulator_css_covers_requested_responsive_breakpoints() -> None:
@@ -386,6 +420,10 @@ def test_layouts_are_independent_and_simulator_has_all_controls() -> None:
         "sim-section-geo-base",
         "sim-section-geo-central",
         "sim-map-legend",
+        "sim-map-scenario",
+        "sim-map-scenario-title",
+        "sim-map-data",
+        "sim-map-scenario-applied",
         "sim-download-sections-button",
         "sim-conservative-increment",
         "sim-conservative-mean",
@@ -398,7 +436,7 @@ def test_layouts_are_independent_and_simulator_has_all_controls() -> None:
     assert "sim-map-view" not in simulator_ids
 
     assert len(explorer_app.callback_map) == 7
-    assert len(simulator_app.callback_map) == 6
+    assert len(simulator_app.callback_map) == 8
     assert all("sim-" not in callback_id for callback_id in explorer_app.callback_map)
     explorer_only_ids = ("context-panel", "age-chart", "timeline-chart", "section-geo")
     assert all(
@@ -420,16 +458,29 @@ def test_layouts_are_independent_and_simulator_has_all_controls() -> None:
     assert "https://radar27.onrender.com" in layout_json
     assert "escala compartida ajustada a las secciones tratadas" in layout_json
     assert "Sin secciones tratadas." in layout_json
+    selector = next(component for component in _walk(simulator_app.layout) if getattr(component, "id", None) == "sim-map-scenario")
+    assert selector.value == "central"
+    assert selector.options == [
+        {"label": "Pesimista", "value": "conservative"},
+        {"label": "Normal", "value": "central"},
+        {"label": "Optimista", "value": "optimistic"},
+    ]
 
 
-def test_shared_scale_uses_only_valid_treated_base_and_central_values() -> None:
+def test_shared_scale_uses_only_valid_treated_values_for_each_scenario() -> None:
     selected = pd.DataFrame(
         {
             "participacion_base_pct": [45.1, 52.2, np.nan],
             "participacion_central_pct": [46.1, 54.2, np.nan],
+            "participacion_conservative_pct": [45.6, 52.4, np.nan],
+            "participacion_optimistic_pct": [47.1, 56.2, np.nan],
         }
     )
     assert _shared_participation_range(selected) == (45.1, 54.2)
+    assert _shared_participation_range(selected, "conservative") == (45.1, 52.4)
+    assert _shared_participation_range(selected, "optimistic") == (45.1, 56.2)
+    selected.loc[0, "participacion_optimistic_pct"] = np.nan
+    assert _shared_participation_range(selected, "optimistic") == (52.2, 56.2)
     assert _shared_participation_range(selected.iloc[:0]) is None
     assert _shared_participation_range(selected.iloc[2:]) is None
     legend = _map_scale_legend((45.1, 54.2), 3)
@@ -445,26 +496,33 @@ def test_shared_scale_uses_only_valid_treated_base_and_central_values() -> None:
 
 
 def test_comparison_maps_share_selection_and_dynamic_percent_scale() -> None:
-    entry = next(
+    simulation_entry = next(
         entry
         for key, entry in simulator_app.callback_map.items()
-        if "sim-section-geo-base.hideout" in key
+        if "sim-map-data.data" in key
     )
-    callback = entry["callback"].__wrapped__
-    assert all(not item["id"].startswith("sim-map-") for item in entry["inputs"])
-    output = callback(ALL_PROFILES, ["include"], 100, 100, "cumulative", 63, 25, 42)
-    base, central, legend = output[-3:]
-    assert base["assignmentLookup"] == central["assignmentLookup"]
+    visual_entry = next(
+        entry for key, entry in simulator_app.callback_map.items()
+        if "sim-map-scale.children" in key
+    )
+    simulate_callback = simulation_entry["callback"].__wrapped__
+    visual_callback = visual_entry["callback"].__wrapped__
+    assert {item["id"] for item in visual_entry["inputs"]} == {"sim-map-scenario", "sim-map-data"}
+    output = simulate_callback(ALL_PROFILES, ["include"], 100, 100, "cumulative", 63, 25, 42)
+    base, central, map_data = output[-3:]
+    legend, title = visual_callback("central", map_data)
     assert len(base["assignmentLookup"]) == 25
+    assert base["assignmentLookup"] == central["assignmentLookup"]
     assert base["mapScenario"] == "base"
     assert central["mapScenario"] == "central"
+    assert title == "Con intervención · escenario normal"
     assert base["participationColors"] == central["participationColors"] == PARTICIPATION_COLORS
-    assert base["participationRange"] == central["participationRange"]
+    assert base["participationRanges"] == central["participationRanges"]
     assert base["interventionEffects"] == central["interventionEffects"]
     simulated = simulate(eligible_sections(ALL_PROFILES, include_insufficient=True), 25, seed=42)
     treated = simulated["frame"].loc[simulated["frame"]["seleccionada"]]
     values = pd.concat([treated["participacion_base_pct"], treated["participacion_central_pct"]])
-    assert base["participationRange"] == (float(values.min()), float(values.max()))
+    assert base["participationRanges"]["central"] == (float(values.min()), float(values.max()))
     key = next(iter(base["assignmentLookup"]))
     expected_base = float(treated.loc[treated["clave_seccion"].eq(key), "participacion_base_pct"].iloc[0])
     assert base["assignmentLookup"][key][1] == expected_base
@@ -473,16 +531,32 @@ def test_comparison_maps_share_selection_and_dynamic_percent_scale() -> None:
     assert output[2] != "No disponible"
     assert output[5] != "No disponible"
 
-    empty = callback(ALL_PROFILES, ["include"], 100, 100, "cumulative", 63, 0, 42)
-    assert empty[-3]["participationRange"] is None
-    assert empty[-2]["participationRange"] is None
-    assert empty[-1][0].children == "Sin secciones tratadas."
+    for scenario, label in (("conservative", "pesimista"), ("optimistic", "optimista")):
+        other_legend, other_title = visual_callback(scenario, map_data)
+        values = pd.concat([treated["participacion_base_pct"], treated[f"participacion_{scenario}_pct"]])
+        assert base["participationRanges"][scenario] == central["participationRanges"][scenario]
+        assert base["participationRanges"][scenario] == (float(values.min()), float(values.max()))
+        assert other_legend[1].children[-1].children == f"{values.max():.2f}%"
+        assert other_title == f"Con intervención · escenario {label}"
 
-    larger = callback(ALL_PROFILES, ["include"], 100, 100, "cumulative", 63, 1000, 42)
-    assert larger[-3]["participationRange"] == larger[-2]["participationRange"]
-    assert larger[-3]["participationRange"] != base["participationRange"]
-    assert larger[-1][1].children[0].children == (
-        f"{larger[-3]['participationRange'][0]:.2f}%"
+    assert all(item["id"] != "sim-map-scenario" for item in simulation_entry["inputs"])
+
+    empty_output = simulate_callback(ALL_PROFILES, ["include"], 100, 100, "cumulative", 63, 0, 42)
+    assert empty_output[-3]["participationRanges"]["optimistic"] is None
+    assert empty_output[-2]["participationRanges"]["optimistic"] is None
+    assert visual_callback("optimistic", empty_output[-1])[0][0].children == "Sin secciones tratadas."
+    no_projection = visual_callback("conservative", {
+        "participationRanges": {"conservative": None},
+        "selectedCount": 1,
+    })
+    assert "no tienen proyección válida" in no_projection[0][0].children
+
+    larger_output = simulate_callback(ALL_PROFILES, ["include"], 100, 100, "cumulative", 63, 1000, 42)
+    larger_range = larger_output[-3]["participationRanges"]["central"]
+    assert larger_range == larger_output[-2]["participationRanges"]["central"]
+    assert larger_range != base["participationRanges"]["central"]
+    assert visual_callback("central", larger_output[-1])[0][1].children[0].children == (
+        f"{larger_range[0]:.2f}%"
     )
 
 

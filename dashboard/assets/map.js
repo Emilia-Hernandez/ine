@@ -1,4 +1,18 @@
 window.dashboardMap = Object.assign({}, window.dashboardMap, {
+    simulatorLayers: {base: {lookup: null, entries: []}, central: {lookup: null, entries: []}},
+    simulatorSelectedScenario: "central",
+    simulatorApplyScenario: function(scenario) {
+        if (!({conservative: true, central: true, optimistic: true})[scenario]) scenario = "central";
+        window.dashboardMap.simulatorSelectedScenario = scenario;
+        for (const registry of Object.values(window.dashboardMap.simulatorLayers)) {
+            registry.entries = registry.entries.filter(entry => {
+                if (!entry.layer._map) return false;
+                entry.layer.setStyle(window.dashboardMap.simulatorSectionStyle(entry.feature, {hideout: entry.hideout}));
+                window.dashboardMap.simulatorOnEachFeature(entry.feature, entry.layer, {hideout: entry.hideout}, false);
+                return true;
+            });
+        }
+    },
     sectionStyle: function(feature, context) {
         const props = feature.properties || {};
         const hideout = context.hideout || {};
@@ -88,15 +102,19 @@ window.dashboardMap = Object.assign({}, window.dashboardMap, {
         const assignment = (hideout.assignmentLookup || {})[key];
         const base = assignment && assignment[1];
         const effects = assignment && (hideout.interventionEffects || {})[String(assignment[0])];
-        const centralEffect = effects && Number(effects[1]);
+        const selectedScenario = window.dashboardMap.simulatorSelectedScenario || "central";
+        const mapScenario = hideout.mapScenario === "base" ? "base" : selectedScenario;
+        const scenarioIndex = {conservative: 0, central: 1, optimistic: 2}[mapScenario];
+        const scenarioEffect = effects && Number(effects[scenarioIndex]);
         const participation = base === null || !Number.isFinite(base) ||
-            (hideout.mapScenario === "central" && !Number.isFinite(centralEffect))
-            ? NaN : (hideout.mapScenario === "central"
-                ? Math.min(100, base + centralEffect) : base);
+            (mapScenario !== "base" && !Number.isFinite(scenarioEffect))
+            ? NaN : (mapScenario === "base"
+                ? base : Math.min(100, base + scenarioEffect));
         const crimeCount = Number(props[hideout.vebPeriod === "24m" ? "b" : "a"]);
         const crimeContext = selected && Number.isFinite(crimeCount) && crimeCount > 0;
         const fillColor = window.dashboardMap.simulatorParticipationColor(
-            participation, hideout.participationColors, hideout.participationRange
+            participation, hideout.participationColors,
+            (hideout.participationRanges || {})[selectedScenario]
         );
         const fillOpacity = selected ? 0.88 : 0;
         return {
@@ -108,7 +126,7 @@ window.dashboardMap = Object.assign({}, window.dashboardMap, {
             dashArray: crimeContext ? "4 3" : null
         };
     },
-    simulatorOnEachFeature: function(feature, layer, context) {
+    simulatorOnEachFeature: function(feature, layer, context, register = true) {
         const props = feature.properties || {};
         const hideout = (context && context.hideout) || {};
         const key = String(props.k || "");
@@ -126,13 +144,17 @@ window.dashboardMap = Object.assign({}, window.dashboardMap, {
             const names = hideout.interventionNames || {};
             const effects = (hideout.interventionEffects || {})[String(assignment[0])] || [0, 0, 0];
             const base = assignment[1];
+            const scenario = window.dashboardMap.simulatorSelectedScenario || "central";
+            const scenarioIndex = {conservative: 0, central: 1, optimistic: 2}[scenario];
+            const scenarioLabel = {conservative: "Pesimista", central: "Normal", optimistic: "Optimista"}[scenario];
             content += "<br>Intervención: " + (names[String(assignment[0])] || "No disponible");
             content += "<br>Sin intervención: " + (base === null ? "No disponible" : Number(base).toFixed(2) + "%");
-            if (base !== null) {
-                content += "<br>Pesimista: +" + Number(effects[0]).toFixed(2) + " pp → " + Math.min(100, Number(base) + Number(effects[0])).toFixed(2) + "%";
-                const normal = Math.min(100, Number(base) + Number(effects[1]));
-                content += "<br>Normal: +" + (normal - Number(base)).toFixed(2) + " pp → " + normal.toFixed(2) + "%";
-                content += "<br>Optimista: +" + Number(effects[2]).toFixed(2) + " pp → " + Math.min(100, Number(base) + Number(effects[2])).toFixed(2) + "%";
+            if (base !== null && Number.isFinite(Number(base)) && Number.isFinite(Number(effects[scenarioIndex]))) {
+                const projected = Math.min(100, Number(base) + Number(effects[scenarioIndex]));
+                content += "<br>" + scenarioLabel + ": +" + (projected - Number(base)).toFixed(2) +
+                    " pp → " + projected.toFixed(2) + "%";
+            } else {
+                content += "<br>" + scenarioLabel + ": No disponible";
             }
         }
         content += "<br>Registros municipales: " + crimeText;
@@ -140,5 +162,13 @@ window.dashboardMap = Object.assign({}, window.dashboardMap, {
             content += "<br><em>Sección seleccionada ubicada en un municipio con registros de crímenes electorales.</em>";
         }
         if (layer && layer.bindTooltip) layer.bindTooltip(content, {sticky: true, direction: "auto"});
+        if (register && layer) {
+            const registry = window.dashboardMap.simulatorLayers[hideout.mapScenario === "base" ? "base" : "central"];
+            if (registry.lookup !== hideout.assignmentLookup) {
+                registry.lookup = hideout.assignmentLookup;
+                registry.entries = [];
+            }
+            registry.entries.push({feature: feature, layer: layer, hideout: hideout});
+        }
     }
 });
