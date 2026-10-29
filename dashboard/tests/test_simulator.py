@@ -22,7 +22,9 @@ from dashboard.simulator import (
 from dashboard.simulator_ui import (
     PARTICIPATION_COLORS,
     _export_frame,
+    _map_scale_legend,
     _priority_visual_spec,
+    _shared_participation_range,
 )
 from dashboard.simulator_app import app as simulator_app
 
@@ -261,6 +263,7 @@ def test_simulator_map_colors_use_real_percentages_and_preserve_missing_values()
             interventionEffects: {"1": [0.5, 1, 2]},
             interventionNames: {"1": "Carta sobre el secreto del voto"},
             participationColors: colors,
+            participationRange: [40, 60],
             activeProfiles: ["P1"],
             includeEI: true,
             vebPeriod: "cumulative",
@@ -288,7 +291,11 @@ def test_simulator_map_colors_use_real_percentages_and_preserve_missing_values()
             {hideout: {...hideout, assignmentLookup: {"01:0001": [1, 99.9]}}}
         );
         console.log(JSON.stringify({
-            stops: [0, 25, 50, 75, 100].map(v => map.simulatorParticipationColor(v, colors)),
+            stops: [40, 45, 50, 55, 60].map(v => map.simulatorParticipationColor(v, colors, [40, 60])),
+            between: map.simulatorParticipationColor(47.5, colors, [40, 60]),
+            adjacent: [45.1, 45.2].map(v => map.simulatorParticipationColor(v, colors, [40, 60])),
+            equalLimits: map.simulatorParticipationColor(50, colors, [50, 50]),
+            noLimits: map.simulatorParticipationColor(50, colors, null),
             base: base.fillColor,
             central: central.fillColor,
             invalid: invalid.fillColor,
@@ -307,6 +314,10 @@ def test_simulator_map_colors_use_real_percentages_and_preserve_missing_values()
     )
     actual = json.loads(result.stdout)
     assert actual["stops"] == list(PARTICIPATION_COLORS)
+    assert actual["between"] == "rgb(238.5, 164, 110)"
+    assert actual["adjacent"][0] != actual["adjacent"][1]
+    assert actual["equalLimits"] == PARTICIPATION_COLORS[2]
+    assert actual["noLimits"] == "#9CA3AF"
     assert actual["base"] == PARTICIPATION_COLORS[2]
     assert actual["central"] != actual["base"]
     assert actual["invalid"] == "#9CA3AF"
@@ -407,25 +418,72 @@ def test_layouts_are_independent_and_simulator_has_all_controls() -> None:
     assert "EI-A/B: Evidencia insuficiente por historia incompleta" in layout_json
     assert "EI-C/D: Evidencia insuficiente por comparabilidad territorial no validada" in layout_json
     assert "https://radar27.onrender.com" in layout_json
-    assert all(f"{color} {index * 25}%" in layout_json for index, color in enumerate(PARTICIPATION_COLORS))
+    assert "escala compartida ajustada a las secciones tratadas" in layout_json
+    assert "Sin secciones tratadas." in layout_json
 
 
-def test_comparison_maps_share_selection_and_fixed_percent_scale() -> None:
-    callback = next(
-        entry["callback"].__wrapped__
+def test_shared_scale_uses_only_valid_treated_base_and_central_values() -> None:
+    selected = pd.DataFrame(
+        {
+            "participacion_base_pct": [45.1, 52.2, np.nan],
+            "participacion_central_pct": [46.1, 54.2, np.nan],
+        }
+    )
+    assert _shared_participation_range(selected) == (45.1, 54.2)
+    assert _shared_participation_range(selected.iloc[:0]) is None
+    assert _shared_participation_range(selected.iloc[2:]) is None
+    legend = _map_scale_legend((45.1, 54.2), 3)
+    assert all(
+        f"{color} {index * 25}%" in legend[0].style["background"]
+        for index, color in enumerate(PARTICIPATION_COLORS)
+    )
+    assert legend[1].children[0].children == "45.10%"
+    assert legend[1].children[-1].children == "54.20%"
+    assert _map_scale_legend(None, 0)[0].children == "Sin secciones tratadas."
+    assert "no tienen proyección válida" in _map_scale_legend(None, 3)[0].children
+    assert _map_scale_legend((50.0, 50.0), 3)[0].style["background"] == PARTICIPATION_COLORS[2]
+
+
+def test_comparison_maps_share_selection_and_dynamic_percent_scale() -> None:
+    entry = next(
+        entry
         for key, entry in simulator_app.callback_map.items()
         if "sim-section-geo-base.hideout" in key
     )
+    callback = entry["callback"].__wrapped__
+    assert all(not item["id"].startswith("sim-map-") for item in entry["inputs"])
     output = callback(ALL_PROFILES, ["include"], 100, 100, "cumulative", 63, 25, 42)
-    base, central = output[-2:]
+    base, central, legend = output[-3:]
     assert base["assignmentLookup"] == central["assignmentLookup"]
     assert len(base["assignmentLookup"]) == 25
     assert base["mapScenario"] == "base"
     assert central["mapScenario"] == "central"
     assert base["participationColors"] == central["participationColors"] == PARTICIPATION_COLORS
+    assert base["participationRange"] == central["participationRange"]
     assert base["interventionEffects"] == central["interventionEffects"]
+    simulated = simulate(eligible_sections(ALL_PROFILES, include_insufficient=True), 25, seed=42)
+    treated = simulated["frame"].loc[simulated["frame"]["seleccionada"]]
+    values = pd.concat([treated["participacion_base_pct"], treated["participacion_central_pct"]])
+    assert base["participationRange"] == (float(values.min()), float(values.max()))
+    key = next(iter(base["assignmentLookup"]))
+    expected_base = float(treated.loc[treated["clave_seccion"].eq(key), "participacion_base_pct"].iloc[0])
+    assert base["assignmentLookup"][key][1] == expected_base
+    assert legend[1].children[0].children == f"{values.min():.2f}%"
+    assert legend[1].children[-1].children == f"{values.max():.2f}%"
     assert output[2] != "No disponible"
     assert output[5] != "No disponible"
+
+    empty = callback(ALL_PROFILES, ["include"], 100, 100, "cumulative", 63, 0, 42)
+    assert empty[-3]["participationRange"] is None
+    assert empty[-2]["participationRange"] is None
+    assert empty[-1][0].children == "Sin secciones tratadas."
+
+    larger = callback(ALL_PROFILES, ["include"], 100, 100, "cumulative", 63, 1000, 42)
+    assert larger[-3]["participationRange"] == larger[-2]["participationRange"]
+    assert larger[-3]["participationRange"] != base["participationRange"]
+    assert larger[-1][1].children[0].children == (
+        f"{larger[-3]['participationRange'][0]:.2f}%"
+    )
 
 
 def test_comparison_maps_switch_polygon_detail_from_the_same_cdn() -> None:

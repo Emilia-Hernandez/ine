@@ -7,6 +7,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 import dash_leaflet as dl
+import numpy as np
 import pandas as pd
 from dash import Dash, Input, Output, State, ctx, dash_table, dcc, html, no_update
 from dash_extensions.javascript import Namespace
@@ -176,17 +177,66 @@ def _legend_item(label: str, class_name: str) -> html.Div:
     )
 
 
-def _map_legend() -> html.Div:
+def _shared_participation_range(selected: pd.DataFrame) -> tuple[float, float] | None:
+    values = selected[["participacion_base_pct", "participacion_central_pct"]].to_numpy(
+        dtype=float, copy=False
+    )
+    valid = values[np.isfinite(values)]
+    if not valid.size:
+        return None
+    return float(valid.min()), float(valid.max())
+
+
+def _map_scale_legend(
+    participation_range: tuple[float, float] | None,
+    selected_count: int,
+) -> list[Any]:
+    if participation_range is None:
+        message = (
+            "Sin secciones tratadas."
+            if not selected_count
+            else "Las secciones tratadas no tienen proyección válida."
+        )
+        return [html.P(message, className="sim-help")]
+
+    minimum, maximum = participation_range
+    if minimum == maximum:
+        return [
+            html.Div(
+                className="sim-participation-gradient",
+                style={"background": PARTICIPATION_COLORS[2]},
+            ),
+            html.Div(
+                [html.Span(f"{minimum:.2f}% · valor único")],
+                className="sim-participation-ticks",
+                style={"justifyContent": "center"},
+            ),
+        ]
+
     gradient = "linear-gradient(90deg, " + ", ".join(
         f"{color} {index * 25}%" for index, color in enumerate(PARTICIPATION_COLORS)
     ) + ")"
+    return [
+        html.Div(className="sim-participation-gradient", style={"background": gradient}),
+        html.Div(
+            [
+                html.Span(f"{minimum + (maximum - minimum) * index / 4:.2f}%")
+                for index in range(5)
+            ],
+            className="sim-participation-ticks",
+        ),
+    ]
+
+
+def _map_legend() -> html.Div:
     return html.Div(
         [
-            html.Strong("Participación proyectada 2027 · misma escala en ambos mapas"),
-            html.Div(className="sim-participation-gradient", style={"background": gradient}),
+            html.Strong(
+                "Participación proyectada 2027 · escala compartida ajustada a las secciones tratadas"
+            ),
             html.Div(
-                [html.Span(f"{value}%") for value in (0, 25, 50, 75, 100)],
-                className="sim-participation-ticks",
+                _map_scale_legend(None, 0),
+                id="sim-map-scale",
             ),
             html.Div(
                 [
@@ -996,6 +1046,7 @@ def register_callbacks(app: Dash) -> None:
         Output("sim-security-context", "children"),
         Output("sim-section-geo-base", "hideout"),
         Output("sim-section-geo-central", "hideout"),
+        Output("sim-map-scale", "children"),
         Input("sim-profile-filter", "value"),
         Input("sim-include-ei", "value"),
         Input("sim-density-filter", "value"),
@@ -1033,10 +1084,11 @@ def register_callbacks(app: Dash) -> None:
         ]
         simulated = simulation["frame"]
         selected = simulated.loc[simulated["seleccionada"]]
+        participation_range = _shared_participation_range(selected)
         assignment_lookup = {
             str(row.clave_seccion): [
                 int(row.intervencion_id),
-                None if pd.isna(row.participacion_base_pct) else round(float(row.participacion_base_pct), 3),
+                None if pd.isna(row.participacion_base_pct) else float(row.participacion_base_pct),
             ]
             for row in selected.itertuples()
         }
@@ -1061,6 +1113,7 @@ def register_callbacks(app: Dash) -> None:
                 for item in INTERVENTIONS
             },
             "participationColors": PARTICIPATION_COLORS,
+            "participationRange": participation_range,
         }
         scenario_results = simulation["scenario_results"]
         return (
@@ -1080,6 +1133,7 @@ def register_callbacks(app: Dash) -> None:
             security_children,
             {**hideout, "mapScenario": "base"},
             {**hideout, "mapScenario": "central"},
+            _map_scale_legend(participation_range, simulation["selected_count"]),
         )
 
     @app.callback(

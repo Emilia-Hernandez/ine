@@ -62,18 +62,23 @@ window.dashboardMap = Object.assign({}, window.dashboardMap, {
         }
         return true;
     },
-    simulatorParticipationColor: function(value, colors) {
-        if (!Number.isFinite(value) || !colors || colors.length !== 5) return "#9CA3AF";
-        const scaled = Math.max(0, Math.min(100, value)) / 25;
+    simulatorParticipationColor: function(value, colors, limits) {
+        if (!Number.isFinite(value) || !colors || colors.length !== 5 ||
+            !Array.isArray(limits) || limits.length !== 2 ||
+            !Number.isFinite(limits[0]) || !Number.isFinite(limits[1])) return "#9CA3AF";
+        if (limits[0] === limits[1]) return colors[2];
+        const scaled = Math.max(0, Math.min(4, 4 * (value - limits[0]) /
+            (limits[1] - limits[0])));
         const index = Math.min(3, Math.floor(scaled));
         const fraction = scaled - index;
         const left = colors[index];
         const right = colors[index + 1];
-        const channel = offset => Math.round(
+        if (fraction === 0) return left;
+        if (fraction === 1) return right;
+        const channel = offset =>
             parseInt(left.slice(offset, offset + 2), 16) * (1 - fraction) +
-            parseInt(right.slice(offset, offset + 2), 16) * fraction
-        ).toString(16).padStart(2, "0");
-        return ("#" + channel(1) + channel(3) + channel(5)).toUpperCase();
+            parseInt(right.slice(offset, offset + 2), 16) * fraction;
+        return "rgb(" + channel(1) + ", " + channel(3) + ", " + channel(5) + ")";
     },
     simulatorSectionStyle: function(feature, context) {
         const props = feature.properties || {};
@@ -91,7 +96,7 @@ window.dashboardMap = Object.assign({}, window.dashboardMap, {
         const crimeCount = Number(props[hideout.vebPeriod === "24m" ? "b" : "a"]);
         const crimeContext = selected && Number.isFinite(crimeCount) && crimeCount > 0;
         const fillColor = window.dashboardMap.simulatorParticipationColor(
-            participation, hideout.participationColors
+            participation, hideout.participationColors, hideout.participationRange
         );
         const fillOpacity = selected ? 0.88 : 0;
         return {
