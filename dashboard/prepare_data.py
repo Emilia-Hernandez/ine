@@ -23,6 +23,11 @@ import shapely
 from shapely import union_all
 from shapely.geometry import Polygon
 
+try:
+    from dashboard.map_assets import build_national_map
+except ModuleNotFoundError:  # Permite ejecutar el archivo directamente.
+    from map_assets import build_national_map
+
 ROOT = Path(__file__).resolve().parents[1]
 DASHBOARD = ROOT / "dashboard"
 DATA_DIR = DASHBOARD / "data"
@@ -465,6 +470,12 @@ def build_geometry(
         target = ASSETS_DIR / f"sections_{name}.fgb"
         layer.to_file(target, driver="FlatGeobuf", spatial_index=True)
         sizes[name] = target.stat().st_size
+
+    national = build_national_map(
+        ASSETS_DIR / "sections_overview.fgb",
+        ASSETS_DIR / "sections_national_v1.geojson.gz",
+    )
+    sizes["national"] = int(national["compressed_bytes"])
 
     state_source = _read_geometry()
     states = state_source.dissolve(by="ENTIDAD", as_index=False)[["ENTIDAD", "geometry"]]

@@ -102,12 +102,25 @@ def test_selection_clears_when_profile_becomes_inactive() -> None:
 
 
 def test_geometry_sources_switch_without_touching_aggregates() -> None:
-    overview, options = update_geometry_source(5, [[14.2, -118.8], [33.4, -86.4]])
-    detail, detail_options = update_geometry_source(9, [[19.0, -100.0], [20.0, -99.0]])
+    national, national_format, national_options = update_geometry_source(
+        5, [[14.2, -118.8], [33.4, -86.4]]
+    )
+    overview, overview_format, options = update_geometry_source(
+        6, [[19.0, -100.0], [20.0, -99.0]]
+    )
+    detail, detail_format, detail_options = update_geometry_source(
+        9, [[19.0, -100.0], [20.0, -99.0]]
+    )
+    assert national.startswith("/map/sections-national-v1.")
+    assert national.endswith(".geojson")
+    assert national_format == "geojson"
+    assert national_options == {}
     assert overview.endswith("sections_overview.fgb")
+    assert overview_format == "flatgeobuf"
     assert detail.endswith("sections_detail.fgb")
-    assert options["rect"]["minX"] <= -118.8
-    assert detail_options["rect"]["maxX"] < -98.8
+    assert detail_format == "flatgeobuf"
+    assert set(options["rect"]) == {"minX", "minY", "maxX", "maxY"}
+    assert detail_options["rect"]["maxX"] <= -98.75
 
 
 def test_callback_payload_renders_all_panels() -> None:

@@ -160,14 +160,25 @@ reproducir la simulación.
 
 ## Rendimiento
 
-La geometría nunca viaja dentro de un callback de filtros. El navegador carga una capa nacional
-simplificada a 900 m y, a partir de zoom 7, consulta por bounding box una capa de 75 m. Ambas
-son copias de visualización indexadas en FlatGeobuf; las fuentes originales permanecen intactas.
+La geometría nunca viaja dentro de un callback de filtros. En zoom 4–5 el navegador descarga una
+sola representación nacional de puntos interiores (`sections_national_v1.geojson.gz`, menos de
+2 MB comprimidos). En zoom 6 consulta por bounding box la capa generalizada a 900 m y desde zoom
+7 usa la capa de 75 m. Los bounding boxes se cuantizan para que movimientos pequeños reutilicen
+la misma URL/rango, y el mapa del simulador no solicita geometría hasta abrir su pestaña. Las capas
+son copias de visualización; las fuentes y los resultados se mantienen intactos.
+
+Los puntos se dibujan con Canvas y los polígonos regionales se leen desde FlatGeobuf. Los assets
+versionados se sirven con caché inmutable durante un año. La capa nacional conserva las 70,751
+claves y las propiedades compactas necesarias para perfiles, densidad, incidencia y Votar entre
+Balas, pero no inventa agregados ni sustituye las geometrías seccionales a escalas de detalle.
 Los filtros se aplican en el cliente, las líneas estatales se sirven una sola vez y los agregados
 se calculan sobre una selección compacta de columnas del Parquet local en memoria. El contrato
 completo de 163 columnas se lee en lotes sólo al exportar y se transmite por streaming. El rango nacional de densidad se precalcula
 offline y se filtra como un entero compacto; no se recalculan áreas ni joins al mover el slider.
 La selección y los cambios de perfil no reinician el viewport.
+
+La medición y la justificación completa están en
+`docs/RADAR27_PERFORMANCE_OPTIMIZATION.md`.
 
 ## Actualizar los datos
 
@@ -200,7 +211,14 @@ universo distinto. Genera:
 - `dashboard/data/manifest.json`;
 - `dashboard/assets/sections_overview.fgb`;
 - `dashboard/assets/sections_detail.fgb`;
+- `dashboard/assets/sections_national_v1.geojson.gz`;
 - `dashboard/assets/state_boundaries.geojson`.
+
+La vista nacional también puede regenerarse de forma aislada y determinista:
+
+```bash
+PYTHONPATH=. .venv/bin/python scripts/build_national_map.py
+```
 
 No ejecute pipelines predictivos para actualizar la interfaz: el insumo autorizado es el
 handoff ya generado.

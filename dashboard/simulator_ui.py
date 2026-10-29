@@ -22,6 +22,7 @@ from dashboard.data_layer import (
     veb_filter_enabled,
     veb_max,
 )
+from dashboard.map_geometry import geometry_spec
 from dashboard.simulator import (
     INTERVENTIONS,
     PRIORITY_COLORS,
@@ -554,10 +555,11 @@ def layout(asset_prefix: str, mexico_bounds: list[list[float]]) -> html.Main:
                         [
                             dl.GeoJSON(
                                 id="sim-section-geo",
-                                url=f"{asset_prefix}/sections_overview.fgb",
-                                format="flatgeobuf",
-                                formatOptions={"rect": {"minX": -118.8, "minY": 14.2, "maxX": -86.4, "maxY": 33.4}},
+                                url=None,
+                                format="geojson",
+                                formatOptions={},
                                 style=MAP_JS("simulatorSectionStyle"),
+                                pointToLayer=MAP_JS("simulatorPointToLayer"),
                                 filter=MAP_JS("simulatorFilter"),
                                 onEachFeature=MAP_JS("simulatorOnEachFeature"),
                                 hideout={},
@@ -589,6 +591,10 @@ def layout(asset_prefix: str, mexico_bounds: list[list[float]]) -> html.Main:
                         _map_legend(),
                         id="sim-map-legend",
                         className="sim-map-legend",
+                    ),
+                    html.P(
+                        "Vista nacional con puntos representativos; los polígonos seccionales aparecen al acercar.",
+                        className="sim-help sim-map-detail-note",
                     ),
                 ],
                 className="panel sim-map-panel",
@@ -756,7 +762,7 @@ def _export_frame(
     return export, simulation, args
 
 
-def register_callbacks(app: Dash, asset_prefix: str) -> None:
+def register_callbacks(app: Dash, asset_prefix: str, national_map_url: str) -> None:
     app.clientside_callback(
         """
         function(tabValue) {
@@ -806,6 +812,7 @@ def register_callbacks(app: Dash, asset_prefix: str) -> None:
         Output("sim-coverage-display", "children"),
         Output("sim-eligible-label", "children"),
         Output("sim-excluded-label", "children"),
+        Input("app-tabs", "value"),
         Input("sim-profile-filter", "value"),
         Input("sim-include-ei", "value"),
         Input("sim-density-filter", "value"),
@@ -814,8 +821,10 @@ def register_callbacks(app: Dash, asset_prefix: str) -> None:
         Input("sim-veb-filter", "value"),
         Input("sim-coverage-percent", "value"),
         Input("sim-coverage-count", "value"),
+        prevent_initial_call=True,
     )
     def sync_coverage(
+        active_tab: str,
         profiles: list[str] | None,
         include_ei: list[str] | None,
         density: Any,
@@ -825,6 +834,8 @@ def register_callbacks(app: Dash, asset_prefix: str) -> None:
         percent: Any,
         requested_count: Any,
     ) -> tuple[Any, ...]:
+        if active_tab != "simulator":
+            return (no_update,) * 11
         frame = eligible_sections(**_filter_args(profiles, include_ei, density, security, period, threshold))
         total = len(frame)
         if ctx.triggered_id == "sim-coverage-count":
@@ -865,6 +876,7 @@ def register_callbacks(app: Dash, asset_prefix: str) -> None:
         Output("sim-priority-table", "data"),
         Output("sim-security-context", "children"),
         Output("sim-section-geo", "hideout"),
+        Input("app-tabs", "value"),
         Input("sim-profile-filter", "value"),
         Input("sim-include-ei", "value"),
         Input("sim-density-filter", "value"),
@@ -873,8 +885,10 @@ def register_callbacks(app: Dash, asset_prefix: str) -> None:
         Input("sim-veb-filter", "value"),
         Input("sim-coverage-count", "value"),
         Input("sim-seed", "value"),
+        prevent_initial_call=True,
     )
     def update_simulation(
+        active_tab: str,
         profiles: list[str] | None,
         include_ei: list[str] | None,
         density: Any,
@@ -884,6 +898,8 @@ def register_callbacks(app: Dash, asset_prefix: str) -> None:
         requested_count: Any,
         seed: Any,
     ) -> tuple[Any, ...]:
+        if active_tab != "simulator":
+            return (no_update,) * 15
         args = _filter_args(profiles, include_ei, density, security, period, threshold)
         frame = eligible_sections(**args)
         simulation = simulate(frame, requested_count, seed=seed)
@@ -906,12 +922,6 @@ def register_callbacks(app: Dash, asset_prefix: str) -> None:
             str(row.clave_seccion): [
                 int(row.intervencion_id),
                 None if pd.isna(row.participacion_base_pct) else round(float(row.participacion_base_pct), 3),
-                round(float(row.efecto_conservative_pp), 3),
-                None if pd.isna(row.participacion_conservative_pct) else round(float(row.participacion_conservative_pct), 3),
-                round(float(row.efecto_central_pp), 3),
-                None if pd.isna(row.participacion_central_pct) else round(float(row.participacion_central_pct), 3),
-                round(float(row.efecto_optimistic_pp), 3),
-                None if pd.isna(row.participacion_optimistic_pct) else round(float(row.participacion_optimistic_pct), 3),
             ]
             for row in selected.itertuples()
         }
@@ -927,6 +937,14 @@ def register_callbacks(app: Dash, asset_prefix: str) -> None:
             "vebThreshold": args["veb_threshold"],
             "assignmentLookup": assignment_lookup,
             "interventionNames": {str(item["id"]): item["name"] for item in INTERVENTIONS},
+            "interventionEffects": {
+                str(item["id"]): [
+                    item["conservative"],
+                    item["central"],
+                    item["optimistic"],
+                ]
+                for item in INTERVENTIONS
+            },
             "priorityColors": PRIORITY_COLORS,
         }
         scenario_results = simulation["scenario_results"]
@@ -950,26 +968,20 @@ def register_callbacks(app: Dash, asset_prefix: str) -> None:
 
     @app.callback(
         Output("sim-section-geo", "url"),
+        Output("sim-section-geo", "format"),
         Output("sim-section-geo", "formatOptions"),
         Input("sim-map", "zoom"),
         Input("sim-map", "bounds"),
+        Input("app-tabs", "value"),
     )
-    def update_map_source(zoom: Any, bounds: Any) -> tuple[str, dict[str, Any]]:
-        url = f"{asset_prefix}/sections_detail.fgb" if (zoom or 4) >= 7 else f"{asset_prefix}/sections_overview.fgb"
-        rect = {"minX": -118.8, "minY": 14.2, "maxX": -86.4, "maxY": 33.4}
-        if isinstance(bounds, (list, tuple)) and len(bounds) == 2:
-            try:
-                south, west = bounds[0]
-                north, east = bounds[1]
-                rect = {
-                    "minX": max(-119.5, west - max((east - west) * 0.08, 0.03)),
-                    "minY": max(13.5, south - max((north - south) * 0.08, 0.03)),
-                    "maxX": min(-85.5, east + max((east - west) * 0.08, 0.03)),
-                    "maxY": min(34.0, north + max((north - south) * 0.08, 0.03)),
-                }
-            except (TypeError, ValueError):
-                pass
-        return url, {"rect": rect}
+    def update_map_source(
+        zoom: Any,
+        bounds: Any,
+        active_tab: str,
+    ) -> tuple[Any, Any, Any]:
+        if active_tab != "simulator":
+            return no_update, no_update, no_update
+        return geometry_spec(asset_prefix, zoom, bounds, national_map_url)
 
     download_inputs = [
         State("sim-profile-filter", "value"),
