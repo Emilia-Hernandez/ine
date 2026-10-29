@@ -227,6 +227,11 @@ button, input, select { font: inherit; }
 .sim-boundary-endpoint { top: 14px; }
 .sim-boundary-label.start { transform: translateX(0); }
 .sim-boundary-label.end { transform: translateX(-100%); }
+.sim-priority-guide { display: grid; gap: 6px; margin-top: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; background: #fbfaf8; color: #514d49; font-size: 10px; line-height: 1.4; }
+.sim-priority-guide-row { display: flex; align-items: flex-start; gap: 7px; }
+.sim-priority-guide-swatch { flex: 0 0 auto; width: 12px; height: 12px; margin-top: 1px; border-radius: 3px; }
+.sim-priority-guide p { margin: 2px 0 0; color: var(--muted); }
+.sim-priority-guide a { color: var(--blue); text-decoration: underline; text-underline-offset: 2px; }
 .sim-parameter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: end; margin-top: 4px; }
 .sim-number-control { min-width: 0; }
 .sim-number-control input { width: 100%; max-width: 100%; min-height: 38px; padding: 7px 9px; border: 1px solid #d7d2cd; border-radius: 5px; }
@@ -263,15 +268,20 @@ button, input, select { font: inherit; }
 .sim-scenario-card-central { background: #f7f0f2; border-color: #dcbac7; box-shadow: inset 0 3px 0 var(--wine); }
 .sim-map-panel { min-width: 0; margin-top: 14px; overflow: hidden; }
 .sim-map-header { padding: 16px 18px; border-bottom: 1px solid var(--line); }
-.sim-map { width: 100%; min-width: 0; height: clamp(430px, 55vw, 620px); min-height: 430px; }
-.sim-map-legend { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 9px 18px; padding: 11px 15px; border-top: 1px solid var(--line); background: #fbfaf8; color: var(--muted); font-size: 9px; }
+.sim-comparison-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 12px; }
+.sim-comparison-map { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; }
+.sim-comparison-map h3 { margin: 0; padding: 9px 12px; color: var(--ink); font-size: 12px; font-weight: 750; }
+.sim-map { width: 100%; min-width: 0; height: 450px; min-height: 450px; }
+.sim-map-legend { min-width: 0; padding: 12px 15px; border-top: 1px solid var(--line); background: #fbfaf8; color: var(--muted); font-size: 9px; }
+.sim-map-legend > strong { display: block; margin-bottom: 7px; color: var(--ink); font-size: 10px; }
+.sim-participation-gradient { max-width: 650px; height: 13px; border: 1px solid rgba(49,45,42,.2); border-radius: 5px; }
+.sim-participation-ticks { display: flex; max-width: 650px; justify-content: space-between; margin: 4px 0 10px; font-variant-numeric: tabular-nums; }
+.sim-map-legend-items { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 18px; }
 .sim-legend-item { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .sim-legend-swatch { display: inline-block; width: 18px; height: 12px; flex: 0 0 auto; border: 1px solid rgba(49,45,42,.3); border-radius: 3px; }
-.sim-legend-high { background: #B42318; }
-.sim-legend-medium { background: #E7B416; }
-.sim-legend-low { background: #2E7D57; }
+.sim-legend-invalid { background: #9CA3AF; }
 .sim-legend-empty { background: transparent; border-color: #a8a39e; }
-.sim-legend-crime { background: #E7B416; border: 1px dashed #343A43; }
+.sim-legend-crime { background: transparent; border: 1px dashed #343A43; }
 .sim-table-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 14px; margin-top: 14px; }
 .sim-table-panel > div:last-child { max-width: 100%; }
 .sim-bottom-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); gap: 14px; margin-top: 14px; }
@@ -320,6 +330,7 @@ button, input, select { font: inherit; }
     .sim-table-grid, .sim-bottom-grid { grid-template-columns: minmax(0, 1fr); }
     .sim-summary-grid { grid-template-columns: minmax(0, 1fr); }
     .sim-reference-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .sim-comparison-grid { grid-template-columns: minmax(0, 1fr); }
     .sim-map { height: clamp(460px, 68vw, 560px); }
 }
 

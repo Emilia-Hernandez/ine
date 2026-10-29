@@ -37,6 +37,7 @@ from dashboard.simulator import (
 )
 
 MAP_JS = Namespace("dashboardMap")
+PARTICIPATION_COLORS = ("#9C1C24", "#E76F51", "#F6D98B", "#9CCDE1", "#164A72")
 INTERVENTION_SHORT_LABELS = {
     1: "Secreto del voto",
     2: "Norma social",
@@ -175,17 +176,130 @@ def _legend_item(label: str, class_name: str) -> html.Div:
     )
 
 
-def _map_legend() -> list[Any]:
-    return [
-        _legend_item("Prioridad alta", "sim-legend-high"),
-        _legend_item("Prioridad media", "sim-legend-medium"),
-        _legend_item("Prioridad baja", "sim-legend-low"),
-        _legend_item("Sección no seleccionada", "sim-legend-empty"),
-        _legend_item(
-            "Seleccionada en municipio con registros de crímenes electorales",
-            "sim-legend-crime",
+def _map_legend() -> html.Div:
+    gradient = "linear-gradient(90deg, " + ", ".join(
+        f"{color} {index * 25}%" for index, color in enumerate(PARTICIPATION_COLORS)
+    ) + ")"
+    return html.Div(
+        [
+            html.Strong("Participación proyectada 2027 · misma escala en ambos mapas"),
+            html.Div(className="sim-participation-gradient", style={"background": gradient}),
+            html.Div(
+                [html.Span(f"{value}%") for value in (0, 25, 50, 75, 100)],
+                className="sim-participation-ticks",
+            ),
+            html.Div(
+                [
+                    _legend_item("Sin proyección válida", "sim-legend-invalid"),
+                    _legend_item("Sección no seleccionada", "sim-legend-empty"),
+                    _legend_item(
+                        "Seleccionada en municipio con registros de crímenes electorales",
+                        "sim-legend-crime",
+                    ),
+                ],
+                className="sim-map-legend-items",
+            ),
+        ],
+        id="sim-map-legend",
+        className="sim-map-legend",
+    )
+
+
+def _comparison_map(
+    asset_prefix: str,
+    mexico_bounds: list[list[float]],
+    scenario: str,
+    title: str,
+) -> html.Div:
+    return html.Div(
+        [
+            html.H3(title),
+            dl.Map(
+                [
+                    dl.GeoJSON(
+                        id=f"sim-section-geo-{scenario}",
+                        url=map_layer_url("sections_overview.fgb"),
+                        format="flatgeobuf",
+                        formatOptions={"rect": {
+                            "minX": -118.8,
+                            "minY": 14.2,
+                            "maxX": -86.4,
+                            "maxY": 33.4,
+                        }},
+                        style=MAP_JS("simulatorSectionStyle"),
+                        filter=MAP_JS("simulatorFilter"),
+                        onEachFeature=MAP_JS("simulatorOnEachFeature"),
+                        hideout={},
+                        hoverStyle={"weight": 1.6, "color": "#233E4D"},
+                        zoomToBounds=False,
+                    ),
+                    dl.GeoJSON(
+                        url=f"{asset_prefix}/state_boundaries.geojson",
+                        interactive=False,
+                        style={"color": "#4C4947", "weight": 1.1, "opacity": 0.65, "fillOpacity": 0},
+                    ),
+                    dl.ZoomControl(position="topright"),
+                    dl.ScaleControl(position="bottomleft", imperial=False),
+                ],
+                id=f"sim-map-{scenario}",
+                center=[23.6, -102.5],
+                zoom=4,
+                bounds=mexico_bounds,
+                boundsOptions={"padding": [12, 12]},
+                minZoom=4,
+                maxZoom=16,
+                zoomControl=False,
+                preferCanvas=True,
+                trackViewport=True,
+                style={"width": "100%"},
+                className="mexico-map sim-map",
+            ),
+        ],
+        className="sim-comparison-map",
+    )
+
+
+def _priority_guide() -> html.Div:
+    entries = (
+        ("Alta", "Rojo", "P1: Deterioro persistente · P2: Deterioro proyectado"),
+        (
+            "Media",
+            "Amarillo",
+            "P3: Rezago persistente · P6: Variable o no diferenciada · "
+            "EI-A/B: Evidencia insuficiente por historia incompleta · "
+            "EI-C/D: Evidencia insuficiente por comparabilidad territorial no validada",
         ),
-    ]
+        ("Baja", "Verde", "P4: Recuperación · P5: Favorable y estable"),
+    )
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.Span(
+                        className="sim-priority-guide-swatch",
+                        style={"backgroundColor": PRIORITY_COLORS[priority]},
+                    ),
+                    html.Span(
+                        [html.Strong(f"{color} — Prioridad {priority.lower()}. "), description]
+                    ),
+                ],
+                className="sim-priority-guide-row",
+            )
+            for priority, color, description in entries
+        ]
+        + [
+            html.P(
+                "Las categorías EI sólo entran en la selección cuando está activada la opción "
+                "correspondiente. Su prioridad media es provisional y no equivale al "
+                "diagnóstico de riesgo de P3 o P6."
+            ),
+            html.A(
+                "Consulta la descripción completa de los perfiles en el Explorador territorial",
+                href="https://radar27.onrender.com",
+            ),
+        ],
+        className="sim-priority-guide",
+    )
 
 
 def _result_card(label: str, component_id: str, note: str) -> html.Div:
@@ -427,6 +541,7 @@ def layout(asset_prefix: str, mexico_bounds: list[list[float]]) -> html.Main:
                                 ],
                                 className="sim-slider-section",
                             ),
+                            _priority_guide(),
                             html.Div(
                                 [
                                     html.Div(
@@ -546,56 +661,19 @@ def layout(asset_prefix: str, mexico_bounds: list[list[float]]) -> html.Main:
                         html.Div(
                             [
                                 html.Span("Mapa territorial", className="eyebrow"),
-                                html.H2("Prioridad, selección y contexto municipal"),
+                                html.H2("Participación proyectada: sin y con intervención"),
                             ]
                         ),
                         className="sim-map-header",
                     ),
-                    dl.Map(
-                        [
-                            dl.GeoJSON(
-                                id="sim-section-geo",
-                                url=map_layer_url("sections_overview.fgb"),
-                                format="flatgeobuf",
-                                formatOptions={"rect": {
-                                    "minX": -118.8,
-                                    "minY": 14.2,
-                                    "maxX": -86.4,
-                                    "maxY": 33.4,
-                                }},
-                                style=MAP_JS("simulatorSectionStyle"),
-                                filter=MAP_JS("simulatorFilter"),
-                                onEachFeature=MAP_JS("simulatorOnEachFeature"),
-                                hideout={},
-                                hoverStyle={"weight": 1.6, "color": "#233E4D"},
-                                zoomToBounds=False,
-                            ),
-                            dl.GeoJSON(
-                                url=f"{asset_prefix}/state_boundaries.geojson",
-                                interactive=False,
-                                style={"color": "#4C4947", "weight": 1.1, "opacity": 0.65, "fillOpacity": 0},
-                            ),
-                            dl.ZoomControl(position="topright"),
-                            dl.ScaleControl(position="bottomleft", imperial=False),
-                        ],
-                        id="sim-map",
-                        center=[23.6, -102.5],
-                        zoom=4,
-                        bounds=mexico_bounds,
-                        boundsOptions={"padding": [12, 12]},
-                        minZoom=4,
-                        maxZoom=16,
-                        zoomControl=False,
-                        preferCanvas=True,
-                        trackViewport=True,
-                        style={"width": "100%"},
-                        className="mexico-map sim-map",
-                    ),
                     html.Div(
-                        _map_legend(),
-                        id="sim-map-legend",
-                        className="sim-map-legend",
+                        [
+                            _comparison_map(asset_prefix, mexico_bounds, "base", "Sin intervención"),
+                            _comparison_map(asset_prefix, mexico_bounds, "central", "Con intervención · escenario normal"),
+                        ],
+                        className="sim-comparison-grid",
                     ),
+                    _map_legend(),
                     html.P(
                         "Vista nacional y detalle con polígonos seccionales.",
                         className="sim-help sim-map-detail-note",
@@ -916,7 +994,8 @@ def register_callbacks(app: Dash) -> None:
         Output("sim-intervention-table", "data"),
         Output("sim-priority-table", "data"),
         Output("sim-security-context", "children"),
-        Output("sim-section-geo", "hideout"),
+        Output("sim-section-geo-base", "hideout"),
+        Output("sim-section-geo-central", "hideout"),
         Input("sim-profile-filter", "value"),
         Input("sim-include-ei", "value"),
         Input("sim-density-filter", "value"),
@@ -981,7 +1060,7 @@ def register_callbacks(app: Dash) -> None:
                 ]
                 for item in INTERVENTIONS
             },
-            "priorityColors": PRIORITY_COLORS,
+            "participationColors": PARTICIPATION_COLORS,
         }
         scenario_results = simulation["scenario_results"]
         return (
@@ -999,21 +1078,65 @@ def register_callbacks(app: Dash) -> None:
             _formatted_rows(simulation["intervention_rows"]),
             _formatted_rows(simulation["priority_rows"]),
             security_children,
-            hideout,
+            {**hideout, "mapScenario": "base"},
+            {**hideout, "mapScenario": "central"},
         )
 
     @app.callback(
-        Output("sim-section-geo", "url"),
-        Output("sim-section-geo", "format"),
-        Output("sim-section-geo", "formatOptions"),
-        Input("sim-map", "zoom"),
-        Input("sim-map", "bounds"),
+        Output("sim-section-geo-base", "url"),
+        Output("sim-section-geo-base", "format"),
+        Output("sim-section-geo-base", "formatOptions"),
+        Output("sim-section-geo-central", "url"),
+        Output("sim-section-geo-central", "format"),
+        Output("sim-section-geo-central", "formatOptions"),
+        Input("sim-map-base", "zoom"),
+        Input("sim-map-base", "bounds"),
+        Input("sim-map-central", "zoom"),
+        Input("sim-map-central", "bounds"),
     )
     def update_map_source(
-        zoom: Any,
-        bounds: Any,
-    ) -> tuple[Any, Any, Any]:
-        return geometry_spec(zoom, bounds)
+        base_zoom: Any,
+        base_bounds: Any,
+        central_zoom: Any,
+        central_bounds: Any,
+    ) -> tuple[Any, ...]:
+        return (*geometry_spec(base_zoom, base_bounds), *geometry_spec(central_zoom, central_bounds))
+
+    app.clientside_callback(
+        """
+        function(baseCenter, baseZoom, centralCenter, centralZoom) {
+            const unchanged = dash_clientside.no_update;
+            const triggered = dash_clientside.callback_context.triggered || [];
+            const source = triggered.map(item => item.prop_id.split(".")[0])
+                .find(id => id === "sim-map-base" || id === "sim-map-central");
+            if (!source) return [unchanged, unchanged];
+            const center = source === "sim-map-base" ? baseCenter : centralCenter;
+            const zoom = source === "sim-map-base" ? baseZoom : centralZoom;
+            const otherCenter = source === "sim-map-base" ? centralCenter : baseCenter;
+            const otherZoom = source === "sim-map-base" ? centralZoom : baseZoom;
+            const pair = value => Array.isArray(value) ? value :
+                (value && Number.isFinite(value.lat) && Number.isFinite(value.lng)
+                    ? [value.lat, value.lng] : null);
+            const sourcePair = pair(center);
+            const targetPair = pair(otherCenter);
+            if (!sourcePair || !Number.isFinite(zoom)) return [unchanged, unchanged];
+            if (targetPair && Math.abs(sourcePair[0] - targetPair[0]) < 1e-7 &&
+                Math.abs(sourcePair[1] - targetPair[1]) < 1e-7 && zoom === otherZoom) {
+                return [unchanged, unchanged];
+            }
+            const viewport = {center: sourcePair, zoom: zoom, options: {animate: false}};
+            return source === "sim-map-base"
+                ? [unchanged, viewport] : [viewport, unchanged];
+        }
+        """,
+        Output("sim-map-base", "viewport"),
+        Output("sim-map-central", "viewport"),
+        Input("sim-map-base", "center"),
+        Input("sim-map-base", "zoom"),
+        Input("sim-map-central", "center"),
+        Input("sim-map-central", "zoom"),
+        prevent_initial_call=True,
+    )
 
     download_inputs = [
         Input("sim-profile-filter", "value"),

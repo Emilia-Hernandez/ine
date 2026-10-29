@@ -44,6 +44,7 @@ window.dashboardMap = Object.assign({}, window.dashboardMap, {
     simulatorFilter: function(feature, context) {
         const hideout = context.hideout || {};
         const props = feature.properties || {};
+        if (!(hideout.assignmentLookup || {})[String(props.k || "")]) return false;
         const active = hideout.activeProfiles || [];
         if (active.indexOf(props.p) === -1) return false;
         if (!hideout.includeEI && String(props.p).indexOf("EI_") === 0) return false;
@@ -61,18 +62,37 @@ window.dashboardMap = Object.assign({}, window.dashboardMap, {
         }
         return true;
     },
+    simulatorParticipationColor: function(value, colors) {
+        if (!Number.isFinite(value) || !colors || colors.length !== 5) return "#9CA3AF";
+        const scaled = Math.max(0, Math.min(100, value)) / 25;
+        const index = Math.min(3, Math.floor(scaled));
+        const fraction = scaled - index;
+        const left = colors[index];
+        const right = colors[index + 1];
+        const channel = offset => Math.round(
+            parseInt(left.slice(offset, offset + 2), 16) * (1 - fraction) +
+            parseInt(right.slice(offset, offset + 2), 16) * fraction
+        ).toString(16).padStart(2, "0");
+        return ("#" + channel(1) + channel(3) + channel(5)).toUpperCase();
+    },
     simulatorSectionStyle: function(feature, context) {
         const props = feature.properties || {};
         const hideout = context.hideout || {};
         const key = String(props.k || "");
         const selected = Boolean((hideout.assignmentLookup || {})[key]);
-        const profile = String(props.p || "");
-        const priority = (profile === "P1" || profile === "P2") ? "Alta" :
-            ((profile === "P4" || profile === "P5") ? "Baja" : "Media");
-        const priorityColors = hideout.priorityColors || {};
+        const assignment = (hideout.assignmentLookup || {})[key];
+        const base = assignment && assignment[1];
+        const effects = assignment && (hideout.interventionEffects || {})[String(assignment[0])];
+        const centralEffect = effects && Number(effects[1]);
+        const participation = base === null || !Number.isFinite(base) ||
+            (hideout.mapScenario === "central" && !Number.isFinite(centralEffect))
+            ? NaN : (hideout.mapScenario === "central"
+                ? Math.min(100, base + centralEffect) : base);
         const crimeCount = Number(props[hideout.vebPeriod === "24m" ? "b" : "a"]);
         const crimeContext = selected && Number.isFinite(crimeCount) && crimeCount > 0;
-        const fillColor = priorityColors[priority] || "#9CA3AF";
+        const fillColor = window.dashboardMap.simulatorParticipationColor(
+            participation, hideout.participationColors
+        );
         const fillOpacity = selected ? 0.88 : 0;
         return {
             color: crimeContext ? "#343A43" : "#FFFFFF",
@@ -105,7 +125,8 @@ window.dashboardMap = Object.assign({}, window.dashboardMap, {
             content += "<br>Sin intervención: " + (base === null ? "No disponible" : Number(base).toFixed(2) + "%");
             if (base !== null) {
                 content += "<br>Pesimista: +" + Number(effects[0]).toFixed(2) + " pp → " + Math.min(100, Number(base) + Number(effects[0])).toFixed(2) + "%";
-                content += "<br>Normal: +" + Number(effects[1]).toFixed(2) + " pp → " + Math.min(100, Number(base) + Number(effects[1])).toFixed(2) + "%";
+                const normal = Math.min(100, Number(base) + Number(effects[1]));
+                content += "<br>Normal: +" + (normal - Number(base)).toFixed(2) + " pp → " + normal.toFixed(2) + "%";
                 content += "<br>Optimista: +" + Number(effects[2]).toFixed(2) + " pp → " + Math.min(100, Number(base) + Number(effects[2])).toFixed(2) + "%";
             }
         }

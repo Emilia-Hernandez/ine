@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+import shutil
+import subprocess
 from pathlib import Path
 
 import numpy as np
@@ -8,6 +11,7 @@ import pytest
 
 from dashboard.app import app as explorer_app
 from dashboard.data_layer import ALL_PROFILES, load_sections
+from dashboard.map_geometry import MAPS_BASE_URL
 from dashboard.simulator import (
     INTERVENTIONS,
     coverage_count,
@@ -15,7 +19,11 @@ from dashboard.simulator import (
     simulate,
     stable_score,
 )
-from dashboard.simulator_ui import _export_frame, _priority_visual_spec
+from dashboard.simulator_ui import (
+    PARTICIPATION_COLORS,
+    _export_frame,
+    _priority_visual_spec,
+)
 from dashboard.simulator_app import app as simulator_app
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -226,6 +234,7 @@ def test_priority_visual_boundaries_change_with_filtered_universe() -> None:
 
 def test_simulator_map_styles_only_selected_sections() -> None:
     source = (ROOT / "dashboard" / "assets" / "map.js").read_text(encoding="utf-8")
+    assert 'if (!(hideout.assignmentLookup || {})[String(props.k || "")]) return false;' in source
     assert "const fillOpacity = selected ? 0.88 : 0;" in source
     assert 'const crimeContext = selected && Number.isFinite(crimeCount) && crimeCount > 0;' in source
     assert "weight: crimeContext ? 0.45 : (selected ? 0.55 : 0)" in source
@@ -234,6 +243,83 @@ def test_simulator_map_styles_only_selected_sections() -> None:
     assert "Pesimista:" in source
     assert "Normal:" in source
     assert "Optimista:" in source
+    assert "simulatorParticipationColor" in source
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="Node.js no disponible")
+def test_simulator_map_colors_use_real_percentages_and_preserve_missing_values() -> None:
+    script = """
+        const fs = require("fs");
+        const vm = require("vm");
+        global.window = {};
+        vm.runInThisContext(fs.readFileSync(process.argv[1], "utf8"));
+        const map = window.dashboardMap;
+        const colors = JSON.parse(process.argv[2]);
+        const feature = {properties: {k: "01:0001", p: "P1", a: 2, b: 0}};
+        const hideout = {
+            assignmentLookup: {"01:0001": [1, 50]},
+            interventionEffects: {"1": [0.5, 1, 2]},
+            interventionNames: {"1": "Carta sobre el secreto del voto"},
+            participationColors: colors,
+            activeProfiles: ["P1"],
+            includeEI: true,
+            vebPeriod: "cumulative",
+            mapScenario: "base"
+        };
+        const base = map.simulatorSectionStyle(feature, {hideout});
+        const central = map.simulatorSectionStyle(feature, {
+            hideout: {...hideout, mapScenario: "central"}
+        });
+        const invalid = map.simulatorSectionStyle(feature, {
+            hideout: {...hideout, assignmentLookup: {"01:0001": [1, null]}}
+        });
+        const untreated = map.simulatorFilter(
+            {properties: {k: "01:0002", p: "P1"}},
+            {hideout}
+        );
+        let tooltip = "";
+        map.simulatorOnEachFeature(
+            feature, {bindTooltip: value => {tooltip = value;}}, {hideout}
+        );
+        let cappedTooltip = "";
+        map.simulatorOnEachFeature(
+            feature,
+            {bindTooltip: value => {cappedTooltip = value;}},
+            {hideout: {...hideout, assignmentLookup: {"01:0001": [1, 99.9]}}}
+        );
+        console.log(JSON.stringify({
+            stops: [0, 25, 50, 75, 100].map(v => map.simulatorParticipationColor(v, colors)),
+            base: base.fillColor,
+            central: central.fillColor,
+            invalid: invalid.fillColor,
+            selected: map.simulatorFilter(feature, {hideout}),
+            untreated: untreated,
+            crimeOutline: base.dashArray,
+            tooltip: tooltip,
+            cappedTooltip: cappedTooltip
+        }));
+    """
+    result = subprocess.run(
+        ["node", "-e", script, str(ROOT / "dashboard/assets/map.js"), json.dumps(PARTICIPATION_COLORS)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    actual = json.loads(result.stdout)
+    assert actual["stops"] == list(PARTICIPATION_COLORS)
+    assert actual["base"] == PARTICIPATION_COLORS[2]
+    assert actual["central"] != actual["base"]
+    assert actual["invalid"] == "#9CA3AF"
+    assert actual["selected"] is True
+    assert actual["untreated"] is False
+    assert actual["crimeOutline"] == "4 3"
+    assert "Sección 01:0001" in actual["tooltip"]
+    assert "Perfil: P1" in actual["tooltip"]
+    assert "Intervención: Carta sobre el secreto del voto" in actual["tooltip"]
+    assert "Sin intervención: 50.00%" in actual["tooltip"]
+    assert "Normal: +1.00 pp → 51.00%" in actual["tooltip"]
+    assert "Registros municipales: 2" in actual["tooltip"]
+    assert "Normal: +0.10 pp → 100.00%" in actual["cappedTooltip"]
 
 
 def test_simulator_css_covers_requested_responsive_breakpoints() -> None:
@@ -245,6 +331,7 @@ def test_simulator_css_covers_requested_responsive_breakpoints() -> None:
     assert ".sim-main > *" in source and "min-width: 0" in source
     assert ".sim-table-grid, .sim-bottom-grid" in source
     assert ".dashboard-link" in source
+    assert ".sim-comparison-grid" in source
     assert "overflow-x: hidden" not in source
 
 
@@ -272,7 +359,9 @@ def test_layouts_are_independent_and_simulator_has_all_controls() -> None:
         getattr(component, "id", None) for component in _walk(simulator_app.layout)
     }
     assert "app-tabs" not in explorer_ids | simulator_ids
-    assert "sim-map" not in explorer_ids
+    assert "sim-map-base" not in explorer_ids
+    assert "sim-map-central" not in explorer_ids
+    assert "sim-map" not in simulator_ids
     assert "profile-filter" not in simulator_ids
     assert {
         "sim-profile-filter",
@@ -281,7 +370,11 @@ def test_layouts_are_independent_and_simulator_has_all_controls() -> None:
         "sim-coverage-percent",
         "sim-coverage-count",
         "sim-seed",
-        "sim-map",
+        "sim-map-base",
+        "sim-map-central",
+        "sim-section-geo-base",
+        "sim-section-geo-central",
+        "sim-map-legend",
         "sim-download-sections-button",
         "sim-conservative-increment",
         "sim-conservative-mean",
@@ -294,16 +387,60 @@ def test_layouts_are_independent_and_simulator_has_all_controls() -> None:
     assert "sim-map-view" not in simulator_ids
 
     assert len(explorer_app.callback_map) == 7
-    assert len(simulator_app.callback_map) == 5
+    assert len(simulator_app.callback_map) == 6
     assert all("sim-" not in callback_id for callback_id in explorer_app.callback_map)
     explorer_only_ids = ("context-panel", "age-chart", "timeline-chart", "section-geo")
     assert all(
         not any(
-            component_id in callback_id.replace("sim-section-geo", "")
+            component_id in callback_id.replace("sim-section-geo-base", "").replace("sim-section-geo-central", "")
             for component_id in explorer_only_ids
         )
         for callback_id in simulator_app.callback_map
     )
+    layout_json = json.dumps(
+        simulator_app.server.test_client().get("/_dash-layout").get_json(),
+        ensure_ascii=False,
+    )
+    assert "Rojo — Prioridad alta" in layout_json
+    assert "Amarillo — Prioridad media" in layout_json
+    assert "Verde — Prioridad baja" in layout_json
+    assert "EI-A/B: Evidencia insuficiente por historia incompleta" in layout_json
+    assert "EI-C/D: Evidencia insuficiente por comparabilidad territorial no validada" in layout_json
+    assert "https://radar27.onrender.com" in layout_json
+    assert all(f"{color} {index * 25}%" in layout_json for index, color in enumerate(PARTICIPATION_COLORS))
+
+
+def test_comparison_maps_share_selection_and_fixed_percent_scale() -> None:
+    callback = next(
+        entry["callback"].__wrapped__
+        for key, entry in simulator_app.callback_map.items()
+        if "sim-section-geo-base.hideout" in key
+    )
+    output = callback(ALL_PROFILES, ["include"], 100, 100, "cumulative", 63, 25, 42)
+    base, central = output[-2:]
+    assert base["assignmentLookup"] == central["assignmentLookup"]
+    assert len(base["assignmentLookup"]) == 25
+    assert base["mapScenario"] == "base"
+    assert central["mapScenario"] == "central"
+    assert base["participationColors"] == central["participationColors"] == PARTICIPATION_COLORS
+    assert base["interventionEffects"] == central["interventionEffects"]
+    assert output[2] != "No disponible"
+    assert output[5] != "No disponible"
+
+
+def test_comparison_maps_switch_polygon_detail_from_the_same_cdn() -> None:
+    callback = next(
+        entry["callback"].__wrapped__
+        for key, entry in simulator_app.callback_map.items()
+        if "sim-section-geo-base.url" in key
+    )
+    base_url, base_format, base_options, central_url, central_format, central_options = callback(
+        4, None, 9, [[19, -100], [20, -99]]
+    )
+    assert base_url == f"{MAPS_BASE_URL}/sections_overview.fgb"
+    assert central_url == f"{MAPS_BASE_URL}/sections_detail.fgb"
+    assert base_format == central_format == "flatgeobuf"
+    assert set(base_options["rect"]) == set(central_options["rect"])
 
 
 def test_section_export_contains_all_scenarios_and_keeps_central_aliases() -> None:

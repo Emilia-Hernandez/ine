@@ -73,15 +73,20 @@ def test_apps_have_independent_polygon_layouts() -> None:
     explorer = explorer_server.test_client().get("/_dash-layout").get_json()
     simulator = simulator_server.test_client().get("/_dash-layout").get_json()
     explorer_map = _find(explorer, "section-geo")
-    simulator_map = _find(simulator, "sim-section-geo")
+    simulator_base = _find(simulator, "sim-section-geo-base")
+    simulator_central = _find(simulator, "sim-section-geo-central")
     assert explorer_map is not None
-    assert simulator_map is not None
+    assert simulator_base is not None
+    assert simulator_central is not None
     assert explorer_map["url"] == f"{MAPS_BASE_URL}/sections_overview.fgb"
-    assert simulator_map["url"] == f"{MAPS_BASE_URL}/sections_overview.fgb"
-    assert _find(explorer, "sim-section-geo") is None
+    assert simulator_base["url"] == simulator_central["url"] == (
+        f"{MAPS_BASE_URL}/sections_overview.fgb"
+    )
+    assert _find(explorer, "sim-section-geo-base") is None
     assert _find(simulator, "section-geo") is None
     assert "pointToLayer" not in explorer_map
-    assert "pointToLayer" not in simulator_map
+    assert "pointToLayer" not in simulator_base
+    assert "pointToLayer" not in simulator_central
 
 
 def test_point_architecture_has_no_active_references() -> None:
