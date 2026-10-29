@@ -1,10 +1,9 @@
 # Dashboard interactivo de participación electoral 2027
 
-Aplicación local de una sola página para explorar las 70,751 secciones del handoff canónico
-`handoff/FINAL_2027_MUNICIPAL/`. El mapa, los filtros, la ficha contextual y las cuatro
-visualizaciones inferiores comparten un estado: perfiles activos, densidad, seguridad, sección
-seleccionada y vista geográfica. La navegación del mapa no modifica los agregados. El release
-vigente se resuelve desde `dashboard/data/current_release.json`.
+RADAR 27 se publica como dos aplicaciones Dash independientes que comparten los artefactos
+versionados del repositorio: el Explorador territorial y el Simulador de intervenciones. Cada
+proceso registra solamente su layout y sus callbacks. El release vigente se resuelve desde
+`dashboard/data/current_release.json`.
 
 ## Tecnología
 
@@ -19,19 +18,17 @@ leen tal como están en el handoff.
 
 ## Ejecutar
 
-Desde la raíz del repositorio, con el entorno existente:
+Desde la raíz del repositorio, con el entorno existente, arranque cada aplicación en una terminal:
 
 ```bash
 .venv/bin/python -m dashboard.app
+.venv/bin/python -m dashboard.simulator_app
 ```
 
-Abrir <http://127.0.0.1:8050>. También puede usarse:
-
-```bash
-uv run python -m dashboard.app
-# o
-make dashboard
-```
+El Explorador queda en <http://127.0.0.1:8050> y el Simulador en
+<http://127.0.0.1:8051>. `RADAR27_EXPLORER_URL` y `RADAR27_SIMULATOR_URL` permiten cambiar los
+enlaces entre servicios; en local se usan esos dos valores por defecto y en Render se usan las
+URLs de producción.
 
 Para instalar únicamente las dependencias del dashboard en otro entorno Python 3.12:
 
@@ -39,14 +36,15 @@ Para instalar únicamente las dependencias del dashboard en otro entorno Python 
 python -m pip install -r dashboard/requirements.txt
 ```
 
-El arranque de producción probado es:
+Los arranques de producción son:
 
 ```bash
-gunicorn dashboard.app:server --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 120 --access-logfile - --error-logfile -
+gunicorn dashboard.explorer_app:server --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 120 --access-logfile - --error-logfile -
+gunicorn dashboard.simulator_app:server --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 120 --access-logfile - --error-logfile -
 ```
 
-`/healthz` expone una sonda ligera. La configuración gratuita de Render está en `render.yaml` y
-la auditoría de memoria, artefactos y pruebas HTTP en `docs/RENDER_DEPLOYMENT_AUDIT.md`.
+Cada servicio expone su propio `/healthz`. Durante la primera etapa, `render.yaml` queda limitado
+al nuevo servicio `radar27-simulador` para no modificar accidentalmente el `radar27` vigente.
 
 ## Fuentes y cobertura
 
@@ -138,9 +136,9 @@ Las definiciones exactas, reglas y limitaciones están en
 
 ## Simulador de intervenciones
 
-La navegación superior conserva el explorador anterior y añade un simulador con estado propio. El
-simulador reutiliza el Parquet, las geometrías y las funciones de densidad, incidencia y Votar
-entre Balas; no recalcula predicciones ni perfiles. P1/P2 tienen prioridad alta, P3/P6 media y
+El Simulador es un servicio Dash independiente. Reutiliza el Parquet, las geometrías y las
+funciones de densidad, incidencia y Votar entre Balas; no importa el layout ni los callbacks del
+Explorador y no recalcula predicciones ni perfiles. P1/P2 tienen prioridad alta, P3/P6 media y
 P4/P5 baja. EI-A/B y EI-C/D se incluyen por defecto como prioridad operativa media provisional,
 sin cambiar su etiqueta ni interpretarlas como riesgo medio.
 
@@ -160,17 +158,16 @@ reproducir la simulación.
 
 ## Rendimiento
 
-La geometría nunca viaja dentro de un callback de filtros. En zoom 4–5 el navegador descarga una
-sola representación nacional de puntos interiores (`sections_national_v1.geojson.gz`, menos de
-2 MB comprimidos). En zoom 6 consulta por bounding box la capa generalizada a 900 m y desde zoom
-7 usa la capa de 75 m. Los bounding boxes se cuantizan para que movimientos pequeños reutilicen
-la misma URL/rango, y el mapa del simulador no solicita geometría hasta abrir su pestaña. Las capas
-son copias de visualización; las fuentes y los resultados se mantienen intactos.
+La geometría nunca viaja dentro de un callback de filtros. Ambos servicios recuperan el mecanismo
+poligonal de la versión `7d0a5a9`: en la vista nacional consultan por bounding box la capa
+FlatGeobuf generalizada a 900 m y desde zoom 7 usan la capa poligonal de 75 m. Los bounding boxes
+se cuantizan para que movimientos pequeños reutilicen rangos ya solicitados. No existe un nivel de
+puntos ni una ruta `/map/sections-national-v1...geojson`.
 
-Los puntos se dibujan con Canvas y los polígonos regionales se leen desde FlatGeobuf. Los assets
-versionados se sirven con caché inmutable durante un año. La capa nacional conserva las 70,751
-claves y las propiedades compactas necesarias para perfiles, densidad, incidencia y Votar entre
-Balas, pero no inventa agregados ni sustituye las geometrías seccionales a escalas de detalle.
+Los assets versionados se sirven con caché inmutable durante un año. Cada capa conserva las
+70,751 claves y las propiedades compactas necesarias para perfiles, densidad, incidencia y Votar
+entre Balas. El Simulador actualiza selección y estilos mediante `hideout`, sin cambiar la URL de
+geometría mientras no cambien zoom o bounds.
 Los filtros se aplican en el cliente, las líneas estatales se sirven una sola vez y los agregados
 se calculan sobre una selección compacta de columnas del Parquet local en memoria. El contrato
 completo de 163 columnas se lee en lotes sólo al exportar y se transmite por streaming. El rango nacional de densidad se precalcula
@@ -211,14 +208,7 @@ universo distinto. Genera:
 - `dashboard/data/manifest.json`;
 - `dashboard/assets/sections_overview.fgb`;
 - `dashboard/assets/sections_detail.fgb`;
-- `dashboard/assets/sections_national_v1.geojson.gz`;
 - `dashboard/assets/state_boundaries.geojson`.
-
-La vista nacional también puede regenerarse de forma aislada y determinista:
-
-```bash
-PYTHONPATH=. .venv/bin/python scripts/build_national_map.py
-```
 
 No ejecute pipelines predictivos para actualizar la interfaz: el insumo autorizado es el
 handoff ya generado.

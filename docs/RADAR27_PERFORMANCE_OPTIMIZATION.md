@@ -1,5 +1,9 @@
 # RADAR 27 — optimización de rendimiento y cartografía
 
+> **Experimento retirado.** La representación nacional de puntos descrita aquí se descartó el
+> 2026-10-28. La arquitectura vigente vuelve a las capas poligonales y separa Explorador y
+> Simulador; véase `docs/RADAR27_TWO_SERVICES_DEPLOYMENT.md`.
+
 Fecha: 2026-10-28 (America/Mexico_City).
 
 ## Alcance y resultado

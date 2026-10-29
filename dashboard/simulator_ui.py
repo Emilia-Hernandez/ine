@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
+from urllib.parse import urlencode
 
 import dash_leaflet as dl
 import pandas as pd
@@ -282,7 +283,6 @@ def layout(asset_prefix: str, mexico_bounds: list[list[float]]) -> html.Main:
     return html.Main(
         [
             dcc.Store(id="sim-eligible-count", data=0),
-            dcc.Store(id="sim-resize-trigger", data="explorer"),
             html.Section(
                 [
                     html.Span("Planeación hipotética", className="eyebrow"),
@@ -555,11 +555,15 @@ def layout(asset_prefix: str, mexico_bounds: list[list[float]]) -> html.Main:
                         [
                             dl.GeoJSON(
                                 id="sim-section-geo",
-                                url=None,
-                                format="geojson",
-                                formatOptions={},
+                                url=f"{asset_prefix}/sections_overview.fgb",
+                                format="flatgeobuf",
+                                formatOptions={"rect": {
+                                    "minX": -118.8,
+                                    "minY": 14.2,
+                                    "maxX": -86.4,
+                                    "maxY": 33.4,
+                                }},
                                 style=MAP_JS("simulatorSectionStyle"),
-                                pointToLayer=MAP_JS("simulatorPointToLayer"),
                                 filter=MAP_JS("simulatorFilter"),
                                 onEachFeature=MAP_JS("simulatorOnEachFeature"),
                                 hideout={},
@@ -593,7 +597,7 @@ def layout(asset_prefix: str, mexico_bounds: list[list[float]]) -> html.Main:
                         className="sim-map-legend",
                     ),
                     html.P(
-                        "Vista nacional con puntos representativos; los polígonos seccionales aparecen al acercar.",
+                        "Vista nacional y detalle con polígonos seccionales.",
                         className="sim-help sim-map-detail-note",
                     ),
                 ],
@@ -630,10 +634,18 @@ def layout(asset_prefix: str, mexico_bounds: list[list[float]]) -> html.Main:
                             html.Div(
                                 [
                                     html.H2("Descargas reproducibles"),
-                                    html.Button("Descargar secciones (.csv)", id="sim-download-sections-button", className="button export-button"),
-                                    html.Button("Descargar agregados (.csv)", id="sim-download-aggregate-button", className="button"),
-                                    dcc.Download(id="sim-download-sections"),
-                                    dcc.Download(id="sim-download-aggregate"),
+                                    html.A(
+                                        "Descargar secciones (.csv)",
+                                        id="sim-download-sections-button",
+                                        href="/download/simulation-sections.csv",
+                                        className="button export-button",
+                                    ),
+                                    html.A(
+                                        "Descargar agregados (.csv)",
+                                        id="sim-download-aggregate-button",
+                                        href="/download/simulation-aggregate.csv",
+                                        className="button",
+                                    ),
                                 ],
                                 className="panel sim-download-panel",
                             ),
@@ -653,9 +665,8 @@ def layout(asset_prefix: str, mexico_bounds: list[list[float]]) -> html.Main:
                 className="sim-method-note",
             ),
         ],
-        id="simulator-tab-content",
+        id="simulator-app-content",
         className="sim-main",
-        style={"display": "none"},
     )
 
 
@@ -707,8 +718,13 @@ def _export_frame(
 ) -> tuple[pd.DataFrame, dict[str, Any], dict[str, Any]]:
     args = _filter_args(profiles, include_ei, density, security, period, threshold)
     simulation = simulate(eligible_sections(**args), requested_count, seed=seed)
-    frame = simulation["frame"]
-    crime = crime_column(period)
+    export = _export_chunk(simulation["frame"], crime_column(period))
+    export["parametros_filtros_json"] = _export_parameters(args, simulation, seed)
+    return export, simulation, args
+
+
+def _export_chunk(frame: pd.DataFrame, crime: str) -> pd.DataFrame:
+    """Construye sólo las columnas contractuales de un lote del simulador."""
     export = pd.DataFrame(
         {
             "clave_seccion": frame["clave_seccion"],
@@ -744,7 +760,14 @@ def _export_frame(
             "informacion_municipal_faltante": frame[crime].isna(),
         }
     )
-    export["parametros_filtros_json"] = json.dumps(
+    return export
+
+
+def _export_parameters(
+    args: dict[str, Any], simulation: dict[str, Any], seed: Any
+) -> str:
+    frame = simulation["frame"]
+    return json.dumps(
         {
             **args,
             "cobertura_secciones": simulation["selected_count"],
@@ -759,35 +782,58 @@ def _export_frame(
         ensure_ascii=False,
         sort_keys=True,
     )
-    return export, simulation, args
 
 
-def register_callbacks(app: Dash, asset_prefix: str, national_map_url: str) -> None:
-    app.clientside_callback(
-        """
-        function(tabValue) {
-            if (tabValue === "simulator") {
-                window.setTimeout(function() {
-                    window.dispatchEvent(new Event("resize"));
-                }, 250);
-            }
-            return tabValue;
-        }
-        """,
-        Output("sim-resize-trigger", "data"),
-        Input("app-tabs", "value"),
-    )
+def simulation_csv_chunks(
+    profiles: list[str] | None,
+    include_ei: list[str] | None,
+    density: Any,
+    security: Any,
+    period: Any,
+    threshold: Any,
+    requested_count: Any,
+    seed: Any,
+    *,
+    chunk_size: int = 2_000,
+) -> tuple[Any, int]:
+    """Devuelve un CSV reproducible sin materializar una cadena nacional completa."""
+    args = _filter_args(profiles, include_ei, density, security, period, threshold)
+    simulation = simulate(eligible_sections(**args), requested_count, seed=seed)
+    frame = simulation["frame"]
+    crime = crime_column(period)
+    parameters = _export_parameters(args, simulation, seed)
 
-    @app.callback(
-        Output("explorer-tab-content", "style"),
-        Output("simulator-tab-content", "style"),
-        Input("app-tabs", "value"),
-    )
-    def switch_tab(value: str) -> tuple[dict[str, str], dict[str, str]]:
-        if value == "simulator":
-            return {"display": "none"}, {"display": "block"}
-        return {"display": "block"}, {"display": "none"}
+    def chunks() -> Any:
+        yield "\ufeff"
+        for start in range(0, len(frame), chunk_size):
+            export = _export_chunk(frame.iloc[start : start + chunk_size], crime)
+            export["parametros_filtros_json"] = parameters
+            yield export.to_csv(index=False, header=start == 0)
 
+    return chunks(), simulation["selected_count"]
+
+
+def simulation_aggregate_csv(
+    profiles: list[str] | None,
+    include_ei: list[str] | None,
+    density: Any,
+    security: Any,
+    period: Any,
+    threshold: Any,
+    requested_count: Any,
+    seed: Any,
+) -> str:
+    """Genera el resumen pequeño por intervención y prioridad."""
+    args = _filter_args(profiles, include_ei, density, security, period, threshold)
+    simulation = simulate(eligible_sections(**args), requested_count, seed=seed)
+    by_policy = pd.DataFrame(simulation["intervention_rows"]).assign(tipo="intervencion")
+    by_priority = pd.DataFrame(simulation["priority_rows"]).assign(tipo="prioridad")
+    aggregate = pd.concat([by_policy, by_priority], ignore_index=True)
+    aggregate["parametros_filtros_json"] = _export_parameters(args, simulation, seed)
+    return "\ufeff" + aggregate.to_csv(index=False)
+
+
+def register_callbacks(app: Dash, asset_prefix: str) -> None:
     @app.callback(
         Output("sim-veb-filter", "max"),
         Output("sim-veb-filter", "marks"),
@@ -812,7 +858,6 @@ def register_callbacks(app: Dash, asset_prefix: str, national_map_url: str) -> N
         Output("sim-coverage-display", "children"),
         Output("sim-eligible-label", "children"),
         Output("sim-excluded-label", "children"),
-        Input("app-tabs", "value"),
         Input("sim-profile-filter", "value"),
         Input("sim-include-ei", "value"),
         Input("sim-density-filter", "value"),
@@ -821,10 +866,8 @@ def register_callbacks(app: Dash, asset_prefix: str, national_map_url: str) -> N
         Input("sim-veb-filter", "value"),
         Input("sim-coverage-percent", "value"),
         Input("sim-coverage-count", "value"),
-        prevent_initial_call=True,
     )
     def sync_coverage(
-        active_tab: str,
         profiles: list[str] | None,
         include_ei: list[str] | None,
         density: Any,
@@ -834,8 +877,6 @@ def register_callbacks(app: Dash, asset_prefix: str, national_map_url: str) -> N
         percent: Any,
         requested_count: Any,
     ) -> tuple[Any, ...]:
-        if active_tab != "simulator":
-            return (no_update,) * 11
         frame = eligible_sections(**_filter_args(profiles, include_ei, density, security, period, threshold))
         total = len(frame)
         if ctx.triggered_id == "sim-coverage-count":
@@ -876,7 +917,6 @@ def register_callbacks(app: Dash, asset_prefix: str, national_map_url: str) -> N
         Output("sim-priority-table", "data"),
         Output("sim-security-context", "children"),
         Output("sim-section-geo", "hideout"),
-        Input("app-tabs", "value"),
         Input("sim-profile-filter", "value"),
         Input("sim-include-ei", "value"),
         Input("sim-density-filter", "value"),
@@ -885,10 +925,8 @@ def register_callbacks(app: Dash, asset_prefix: str, national_map_url: str) -> N
         Input("sim-veb-filter", "value"),
         Input("sim-coverage-count", "value"),
         Input("sim-seed", "value"),
-        prevent_initial_call=True,
     )
     def update_simulation(
-        active_tab: str,
         profiles: list[str] | None,
         include_ei: list[str] | None,
         density: Any,
@@ -898,8 +936,6 @@ def register_callbacks(app: Dash, asset_prefix: str, national_map_url: str) -> N
         requested_count: Any,
         seed: Any,
     ) -> tuple[Any, ...]:
-        if active_tab != "simulator":
-            return (no_update,) * 15
         args = _filter_args(profiles, include_ei, density, security, period, threshold)
         frame = eligible_sections(**args)
         simulation = simulate(frame, requested_count, seed=seed)
@@ -972,55 +1008,44 @@ def register_callbacks(app: Dash, asset_prefix: str, national_map_url: str) -> N
         Output("sim-section-geo", "formatOptions"),
         Input("sim-map", "zoom"),
         Input("sim-map", "bounds"),
-        Input("app-tabs", "value"),
     )
     def update_map_source(
         zoom: Any,
         bounds: Any,
-        active_tab: str,
     ) -> tuple[Any, Any, Any]:
-        if active_tab != "simulator":
-            return no_update, no_update, no_update
-        return geometry_spec(asset_prefix, zoom, bounds, national_map_url)
+        return geometry_spec(asset_prefix, zoom, bounds)
 
     download_inputs = [
-        State("sim-profile-filter", "value"),
-        State("sim-include-ei", "value"),
-        State("sim-density-filter", "value"),
-        State("sim-security-filter", "value"),
-        State("sim-veb-period", "value"),
-        State("sim-veb-filter", "value"),
-        State("sim-coverage-count", "value"),
-        State("sim-seed", "value"),
+        Input("sim-profile-filter", "value"),
+        Input("sim-include-ei", "value"),
+        Input("sim-density-filter", "value"),
+        Input("sim-security-filter", "value"),
+        Input("sim-veb-period", "value"),
+        Input("sim-veb-filter", "value"),
+        Input("sim-coverage-count", "value"),
+        Input("sim-seed", "value"),
     ]
 
     @app.callback(
-        Output("sim-download-sections", "data"),
-        Input("sim-download-sections-button", "n_clicks"),
+        Output("sim-download-sections-button", "href"),
+        Output("sim-download-aggregate-button", "href"),
         *download_inputs,
-        prevent_initial_call=True,
     )
-    def download_sections(n_clicks: int, *values: Any) -> Any:
-        if not n_clicks:
-            return no_update
-        export, simulation, _ = _export_frame(*values)
-        return dcc.send_data_frame(
-            export.to_csv,
-            f"radar27_simulacion_{simulation['selected_count']}_de_{simulation['eligible_count']}.csv",
-            index=False,
+    def update_download_urls(*values: Any) -> tuple[str, str]:
+        profiles, include_ei, density, security, period, threshold, count, seed = values
+        query = urlencode(
+            {
+                "profiles": ",".join(profiles or []),
+                "include_ei": "1" if "include" in (include_ei or []) else "0",
+                "density": density,
+                "security": security,
+                "period": period,
+                "threshold": threshold,
+                "count": count,
+                "seed": seed,
+            }
         )
-
-    @app.callback(
-        Output("sim-download-aggregate", "data"),
-        Input("sim-download-aggregate-button", "n_clicks"),
-        *download_inputs,
-        prevent_initial_call=True,
-    )
-    def download_aggregate(n_clicks: int, *values: Any) -> Any:
-        if not n_clicks:
-            return no_update
-        _, simulation, _ = _export_frame(*values)
-        by_policy = pd.DataFrame(simulation["intervention_rows"]).assign(tipo="intervencion")
-        by_priority = pd.DataFrame(simulation["priority_rows"]).assign(tipo="prioridad")
-        aggregate = pd.concat([by_policy, by_priority], ignore_index=True)
-        return dcc.send_data_frame(aggregate.to_csv, "radar27_simulacion_agregados.csv", index=False)
+        return (
+            f"/download/simulation-sections.csv?{query}",
+            f"/download/simulation-aggregate.csv?{query}",
+        )

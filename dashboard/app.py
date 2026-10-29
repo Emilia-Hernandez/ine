@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import math
@@ -14,7 +13,7 @@ from urllib.parse import urlencode
 import dash_leaflet as dl
 from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
 from dash_extensions.javascript import Namespace
-from flask import Response, jsonify, request, send_file, stream_with_context
+from flask import Response, jsonify, request, stream_with_context
 
 from dashboard.data_layer import (
     ALL_PROFILES,
@@ -43,16 +42,11 @@ from dashboard.figures import (
     timeline_figure,
 )
 from dashboard.map_geometry import geometry_spec
-from dashboard.simulator_ui import layout as simulator_layout
-from dashboard.simulator_ui import register_callbacks as register_simulator_callbacks
+from dashboard.navigation import SIMULATOR_URL
 from dashboard.state import resolve_selection
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "dashboard" / "assets"
-NATIONAL_MAP_PATH = ASSETS / "sections_national_v1.geojson.gz"
-with NATIONAL_MAP_PATH.open("rb") as national_map_file:
-    NATIONAL_MAP_SHA256 = hashlib.file_digest(national_map_file, "sha256").hexdigest()
-NATIONAL_MAP_URL = f"/map/sections-national-v1.{NATIONAL_MAP_SHA256[:12]}.geojson"
 RELEASE_POINTER = ROOT / "dashboard" / "data" / "current_release.json"
 WORKING_COPY = os.environ.get("RADAR27_DASHBOARD_WORKING_COPY") == "1"
 CURRENT_RELEASE = (
@@ -113,21 +107,6 @@ def healthz() -> Any:
         release=CURRENT_RELEASE["dashboard_release_version"],
         model=CURRENT_RELEASE["model_version"],
     )
-
-
-@server.get(NATIONAL_MAP_URL)
-def national_map() -> Response:
-    """Sirve una sola respuesta comprimida y versionada para la vista nacional."""
-    response = send_file(
-        NATIONAL_MAP_PATH,
-        mimetype="application/geo+json",
-        conditional=True,
-        max_age=31_536_000,
-    )
-    response.headers["Content-Encoding"] = "gzip"
-    response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
-    response.headers["Vary"] = "Accept-Encoding"
-    return response
 
 
 @server.after_request
@@ -614,20 +593,16 @@ app.layout = html.Div(
                             f"Proyección central · A_nacional_actual · {CURRENT_RELEASE['model_version']}"
                         ),
                         html.Span("Snapshot territorial 09·05·2024"),
+                        html.A(
+                            "Abrir simulador de intervenciones",
+                            href=SIMULATOR_URL,
+                            className="dashboard-link",
+                        ),
                     ],
                     className="header-meta",
                 ),
             ],
             className="app-header",
-        ),
-        dcc.Tabs(
-            id="app-tabs",
-            value="explorer",
-            children=[
-                dcc.Tab(label="Explorador territorial", value="explorer"),
-                dcc.Tab(label="Simulador de intervenciones", value="simulator"),
-            ],
-            className="app-tabs",
         ),
         html.Main(
             [
@@ -891,11 +866,15 @@ app.layout = html.Div(
                                     [
                                         dl.GeoJSON(
                                             id="section-geo",
-                                            url=NATIONAL_MAP_URL,
-                                            format="geojson",
-                                            formatOptions={},
+                                            url=f"{ASSET_PREFIX}/sections_overview.fgb",
+                                            format="flatgeobuf",
+                                            formatOptions={"rect": {
+                                                "minX": -118.8,
+                                                "minY": 14.2,
+                                                "maxX": -86.4,
+                                                "maxY": 33.4,
+                                            }},
                                             style=MAP_JS("sectionStyle"),
-                                            pointToLayer=MAP_JS("sectionPointToLayer"),
                                             filter=MAP_JS("profileFilter"),
                                             hoverStyle={
                                                 "weight": 1.6,
@@ -953,7 +932,7 @@ app.layout = html.Div(
                                     [
                                         html.Span("Cartografía INE · snapshot 09/05/2024"),
                                         html.Span(
-                                            "Vista nacional con puntos representativos; polígonos al acercar · referencia no certificada para 2027"
+                                            "Polígonos seccionales · referencia territorial no certificada para 2027"
                                         ),
                                     ],
                                     className="map-footnote",
@@ -1016,16 +995,11 @@ app.layout = html.Div(
                     className="app-footer",
                 ),
             ],
-            id="explorer-tab-content",
             className="app-main",
         ),
-        simulator_layout(ASSET_PREFIX, MEXICO_BOUNDS),
     ],
     className="app-shell",
 )
-
-
-register_simulator_callbacks(app, ASSET_PREFIX, NATIONAL_MAP_URL)
 
 
 @app.callback(
@@ -1124,16 +1098,12 @@ def update_selection(
     Output("section-geo", "formatOptions"),
     Input("mexico-map", "zoom"),
     Input("mexico-map", "bounds"),
-    Input("app-tabs", "value"),
 )
 def update_geometry_source(
     zoom: float | None,
     bounds: Any,
-    active_tab: str = "explorer",
 ) -> tuple[Any, Any, Any]:
-    if active_tab != "explorer":
-        return no_update, no_update, no_update
-    return geometry_spec(ASSET_PREFIX, zoom, bounds, NATIONAL_MAP_URL)
+    return geometry_spec(ASSET_PREFIX, zoom, bounds)
 
 
 @app.callback(

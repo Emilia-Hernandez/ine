@@ -13,24 +13,6 @@ window.dashboardMap = Object.assign({}, window.dashboardMap, {
             dashArray: selected ? null : undefined
         };
     },
-    sectionPointToLayer: function(feature, latlng, context) {
-        const props = feature.properties || {};
-        const hideout = (context && context.hideout) || {};
-        const colors = hideout.colors || {};
-        const selected = hideout.selected === props.k;
-        window.dashboardExplorerPointRenderer = window.dashboardExplorerPointRenderer ||
-            L.canvas({padding: 0.5, tolerance: 3});
-        return L.circleMarker(latlng, {
-            renderer: window.dashboardExplorerPointRenderer,
-            radius: selected ? 3.6 : 1.55,
-            color: selected ? "#135B75" : (String(props.p).indexOf("EI_") === 0 ? "#8B6B13" : colors[props.p] || "#F4F3F1"),
-            weight: selected ? 1.4 : 0,
-            opacity: selected ? 1 : 0,
-            fillColor: colors[props.p] || "#F4F3F1",
-            fillOpacity: selected ? 1 : 0.82,
-            interactive: true
-        });
-    },
     profileFilter: function(feature, context) {
         const hideout = context.hideout || {};
         const active = hideout.activeProfiles || [];
@@ -77,9 +59,6 @@ window.dashboardMap = Object.assign({}, window.dashboardMap, {
             const count = Number(props[hideout.vebPeriod === "24m" ? "b" : "a"]);
             if (!(Number.isFinite(count) && count >= 0 && count <= Number(hideout.vebThreshold))) return false;
         }
-        if (feature.geometry && feature.geometry.type === "Point") {
-            return Boolean((hideout.assignmentLookup || {})[String(props.k || "")]);
-        }
         return true;
     },
     simulatorSectionStyle: function(feature, context) {
@@ -103,29 +82,6 @@ window.dashboardMap = Object.assign({}, window.dashboardMap, {
             fillOpacity: fillOpacity,
             dashArray: crimeContext ? "4 3" : null
         };
-    },
-    simulatorPointToLayer: function(feature, latlng, context) {
-        const props = feature.properties || {};
-        const hideout = (context && context.hideout) || {};
-        const key = String(props.k || "");
-        const selected = Boolean((hideout.assignmentLookup || {})[key]);
-        const profile = String(props.p || "");
-        const priority = (profile === "P1" || profile === "P2") ? "Alta" :
-            ((profile === "P4" || profile === "P5") ? "Baja" : "Media");
-        const crimeCount = Number(props[hideout.vebPeriod === "24m" ? "b" : "a"]);
-        const crimeContext = selected && Number.isFinite(crimeCount) && crimeCount > 0;
-        window.dashboardSimulatorPointRenderer = window.dashboardSimulatorPointRenderer ||
-            L.canvas({padding: 0.5, tolerance: 3});
-        return L.circleMarker(latlng, {
-            renderer: window.dashboardSimulatorPointRenderer,
-            radius: selected ? 1.9 : 0,
-            color: crimeContext ? "#343A43" : "#FFFFFF",
-            weight: crimeContext ? 0.75 : (selected ? 0.35 : 0),
-            opacity: selected ? 0.82 : 0,
-            fillColor: (hideout.priorityColors || {})[priority] || "#9CA3AF",
-            fillOpacity: selected ? 0.9 : 0,
-            interactive: selected
-        });
     },
     simulatorOnEachFeature: function(feature, layer, context) {
         const props = feature.properties || {};

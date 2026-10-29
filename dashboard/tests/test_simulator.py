@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from dashboard.app import app
+from dashboard.app import app as explorer_app
 from dashboard.data_layer import ALL_PROFILES, load_sections
 from dashboard.simulator import (
     INTERVENTIONS,
@@ -16,6 +16,7 @@ from dashboard.simulator import (
     stable_score,
 )
 from dashboard.simulator_ui import _export_frame, _priority_visual_spec
+from dashboard.simulator_app import app as simulator_app
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -243,7 +244,7 @@ def test_simulator_css_covers_requested_responsive_breakpoints() -> None:
     assert "@media (max-width: 430px)" in source
     assert ".sim-main > *" in source and "min-width: 0" in source
     assert ".sim-table-grid, .sim-bottom-grid" in source
-    assert ".app-tabs" in source and "overflow-x: auto" in source
+    assert ".dashboard-link" in source
     assert "overflow-x: hidden" not in source
 
 
@@ -263,18 +264,17 @@ def test_real_universe_evidence_toggle_and_original_projection_are_preserved() -
     )
 
 
-def test_layout_contains_two_tabs_and_independent_simulator_controls() -> None:
-    components = list(_walk(app.layout))
-    tabs = next(component for component in components if getattr(component, "id", None) == "app-tabs")
-    assert [tab.label for tab in tabs.children] == [
-        "Explorador territorial",
-        "Simulador de intervenciones",
-    ]
-    ids = {getattr(component, "id", None) for component in components}
+def test_layouts_are_independent_and_simulator_has_all_controls() -> None:
+    explorer_ids = {
+        getattr(component, "id", None) for component in _walk(explorer_app.layout)
+    }
+    simulator_ids = {
+        getattr(component, "id", None) for component in _walk(simulator_app.layout)
+    }
+    assert "app-tabs" not in explorer_ids | simulator_ids
+    assert "sim-map" not in explorer_ids
+    assert "profile-filter" not in simulator_ids
     assert {
-        "profile-filter",
-        "density-filter",
-        "security-filter",
         "sim-profile-filter",
         "sim-density-filter",
         "sim-security-filter",
@@ -289,9 +289,21 @@ def test_layout_contains_two_tabs_and_independent_simulator_controls() -> None:
         "sim-central-mean",
         "sim-optimistic-increment",
         "sim-optimistic-mean",
-    }.issubset(ids)
-    assert "sim-scenario" not in ids
-    assert "sim-map-view" not in ids
+    }.issubset(simulator_ids)
+    assert "sim-scenario" not in simulator_ids
+    assert "sim-map-view" not in simulator_ids
+
+    assert len(explorer_app.callback_map) == 7
+    assert len(simulator_app.callback_map) == 5
+    assert all("sim-" not in callback_id for callback_id in explorer_app.callback_map)
+    explorer_only_ids = ("context-panel", "age-chart", "timeline-chart", "section-geo")
+    assert all(
+        not any(
+            component_id in callback_id.replace("sim-section-geo", "")
+            for component_id in explorer_only_ids
+        )
+        for callback_id in simulator_app.callback_map
+    )
 
 
 def test_section_export_contains_all_scenarios_and_keeps_central_aliases() -> None:

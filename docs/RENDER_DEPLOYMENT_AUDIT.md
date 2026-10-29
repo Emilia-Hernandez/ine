@@ -1,5 +1,10 @@
 # RADAR 27 — auditoría de despliegue en Render Free
 
+> **Documento histórico.** Las mediciones de una sola aplicación con dos pestañas quedaron
+> sustituidas el 2026-10-28 por la separación en dos servicios documentada en
+> `docs/RADAR27_TWO_SERVICES_DEPLOYMENT.md`. No use el comando Gunicorn de este archivo para un
+> despliegue nuevo.
+
 Fecha de la medición original: 2026-10-20 (America/Mexico_City).
 Actualización de publicación: 2026-10-28.
 

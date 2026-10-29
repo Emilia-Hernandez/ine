@@ -11,7 +11,15 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from dashboard.app import _veb_attack_card, app, update_dashboard, update_geometry_source, veb_range
+from dashboard.app import (
+    ASSET_PREFIX,
+    CURRENT_RELEASE,
+    _veb_attack_card,
+    app,
+    update_dashboard,
+    update_geometry_source,
+    veb_range,
+)
 from dashboard.data_layer import (
     ALL_PROFILES,
     VEB_COLUMNS,
@@ -111,10 +119,9 @@ def test_geometry_sources_switch_without_touching_aggregates() -> None:
     detail, detail_format, detail_options = update_geometry_source(
         9, [[19.0, -100.0], [20.0, -99.0]]
     )
-    assert national.startswith("/map/sections-national-v1.")
-    assert national.endswith(".geojson")
-    assert national_format == "geojson"
-    assert national_options == {}
+    assert national.endswith("sections_overview.fgb")
+    assert national_format == "flatgeobuf"
+    assert set(national_options["rect"]) == {"minX", "minY", "maxX", "maxY"}
     assert overview.endswith("sections_overview.fgb")
     assert overview_format == "flatgeobuf"
     assert detail.endswith("sections_detail.fgb")
@@ -132,29 +139,33 @@ def test_callback_payload_renders_all_panels() -> None:
 
 
 def test_geometry_and_manifest_are_complete() -> None:
-    manifest = json.loads((ROOT / "dashboard" / "data" / "manifest.json").read_text())
+    manifest_path = ROOT / CURRENT_RELEASE["manifest_file"]
+    manifest = json.loads(manifest_path.read_text())
+    asset_root = ROOT / "dashboard" / ASSET_PREFIX.lstrip("/")
+    data_path = ROOT / CURRENT_RELEASE["data_file"]
     assert manifest["sections"] == 70_751
     assert manifest["geometry_version"].startswith("snapshot_INE_2024-05-09")
     for name in ("overview", "detail"):
-        layer = gpd.read_file(ROOT / "dashboard" / "assets" / f"sections_{name}.fgb")
+        layer = gpd.read_file(asset_root / f"sections_{name}.fgb")
         assert len(layer) == 70_751
         assert layer["k"].is_unique
         assert {"k", "p", "r", "s", "a", "b"}.issubset(layer.columns)
         sample = layer.set_index("k").loc["01:0001"]
         source = pd.read_parquet(
-            ROOT / "dashboard/data/dashboard_sections.parquet",
+            data_path,
             columns=["clave_seccion", "municipal_attacks_cumulative", "municipal_attacks_24m"],
         ).set_index("clave_seccion").loc["01:0001"]
         assert sample["a"] == int(source["municipal_attacks_cumulative"])
         assert sample["b"] == int(source["municipal_attacks_24m"])
         assert layer.geometry.is_valid.all()
-    states = gpd.read_file(ROOT / "dashboard" / "assets" / "state_boundaries.geojson")
+    states = gpd.read_file(asset_root / "state_boundaries.geojson")
     assert len(states) == 32
     assert states.geometry.is_valid.all()
 
 
 def test_density_canonical_table_integrity_and_coverage() -> None:
-    density = pd.read_parquet(ROOT / "dashboard" / "data" / "section_housing_density.parquet")
+    density_path = (ROOT / CURRENT_RELEASE["manifest_file"]).parent / "section_housing_density.parquet"
+    density = pd.read_parquet(density_path)
     assert list(density.columns) == [
         "section_id",
         "entidad",

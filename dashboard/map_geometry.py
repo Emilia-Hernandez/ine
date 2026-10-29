@@ -1,12 +1,10 @@
-"""Selección compartida de nivel cartográfico para los dos mapas."""
+"""Selección compartida de las dos capas poligonales originales."""
 
 from __future__ import annotations
 
 import math
 from typing import Any
 
-NATIONAL_MAP_URL = "/map/sections-national-v1.geojson"
-NATIONAL_MAX_ZOOM = 5
 DETAIL_MIN_ZOOM = 7
 MEXICO_RECT = {"minX": -118.8, "minY": 14.2, "maxX": -86.4, "maxY": 33.4}
 
@@ -35,15 +33,12 @@ def geometry_spec(
     asset_prefix: str,
     zoom: Any,
     bounds: Any,
-    national_url: str = NATIONAL_MAP_URL,
 ) -> tuple[str, str, dict[str, Any]]:
-    """Devuelve URL, formato y bbox cuantizado para el nivel visible."""
+    """Devuelve la capa poligonal y el bbox cuantizado para el nivel visible."""
     try:
         level = float(zoom)
     except (TypeError, ValueError):
         level = 4.0
-    if level <= NATIONAL_MAX_ZOOM:
-        return national_url, "geojson", {}
     detail = level >= DETAIL_MIN_ZOOM
     filename = "sections_detail.fgb" if detail else "sections_overview.fgb"
     grid = 0.25 if detail else 1.0
